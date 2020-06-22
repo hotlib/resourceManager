@@ -9,4 +9,8 @@ package ent
 //go:generate echo ""
 //go:generate echo "------> Generating ent.go entities from ent/schema folder"
 //go:generate go run github.com/facebookincubator/ent/cmd/entc generate --storage=sql --template ./template --template ../ent-contrib/entgqlgen/template --header "// Code generated (@generated) by entc, DO NOT EDIT." ./schema
+//go:generate echo "------> Generating finished"
+
+//go:generate ./rename_generated_files.sh
+
 //go:generate echo "======> Done !"

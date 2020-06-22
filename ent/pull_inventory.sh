@@ -6,13 +6,7 @@
 
 echo ""
 echo "------> Downloading magma master to /tmp/magma.zip"
-# go:generate curl -s -L https://github.com/facebookincubator/magma/archive/master.zip --output /tmp/magma.zip
-
-
-# Cleanup
-echo ""
-echo "------> Removing all inv_* files"
-find .. -type f -name 'inv_*' -delete
+curl -s -L https://github.com/facebookincubator/magma/archive/master.zip --output /tmp/magma.zip
 
 
 # Copy all entities from inventory
