@@ -1,0 +1,13 @@
+type Testdata  {
+  id: ID!
+  attr: String!
+}
+
+type Query {
+  testdata: [Testdata!]!
+}
+
+type Mutation {
+  createTestdata(input: String!): Testdata!
+}
+
