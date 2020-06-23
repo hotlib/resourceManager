@@ -2,16 +2,16 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/marosmars/resourceManager/authz"
 	"github.com/marosmars/resourceManager/authz/models"
 	"github.com/marosmars/resourceManager/ent"
-	"github.com/marosmars/resourceManager/ent/propertytype"
-	"github.com/marosmars/resourceManager/ent/resourcetype"
+	resource "github.com/marosmars/resourceManager/ent/resource"
+	resourcePool "github.com/marosmars/resourceManager/ent/resourcepool"
 	_ "github.com/marosmars/resourceManager/ent/runtime"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pkg/errors"
 )
 
 func main() {
@@ -27,70 +27,125 @@ func main() {
 		log.Fatalf("failed creating schema resources: %v", err)
 	}
 
-	if _, err := createVlanType(ctx, client); err != nil {
-		log.Fatalf("failed creating resource type: %v", err)
-	}
-	if _, err := createVlan(ctx, client); err != nil {
-		log.Fatalf("failed creating resource: %v", err)
-	}
-	if _, err := queryRType(ctx, client); err != nil {
-		log.Fatalf("failed querying resource type: %v", err)
-	}
-}
-
-func createVlanType(ctx context.Context, client *ent.Client) (*ent.ResourceType, error) {
-	p, err := client.PropertyType.Create().
+	propType, err := client.PropertyType.Create().
 		SetName("vlan").
 		SetType("int").
+		SetIntVal(0).
 		Save(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed creating property type: %v", err)
-	}
+	defer client.PropertyType.DeleteOne(propType).Exec(ctx)
 
-	u, err := client.ResourceType.Create().
-		SetName("Vlan").
-		AddPropertyTypes(p).
+	resType, _ := client.ResourceType.Create().
+		SetName("vlan").
+		AddPropertyTypes(propType).
 		Save(ctx)
+	defer client.ResourceType.DeleteOne(resType).Exec(ctx)
 
-	if err != nil {
-		return nil, fmt.Errorf("failed creating resource type: %v", err)
-	}
-	fmt.Println("resource type was created: ", u)
-	return u, nil
+	pool, _ := client.ResourcePool.Create().
+		SetName("singleton_vlan_11").
+		SetPoolType("singleton").
+		SetResourceType(resType).
+		Save(ctx)
+	defer client.ResourcePool.DeleteOne(pool).Exec(ctx)
+
+	// Claim / allocate resource
+	singletonPool{pool}.claimResource(ctx, client, "client1")
+
+	// Query resource
+	log.Println(singletonPool{pool}.queryResource(ctx, client, "client1"))
+
+	// Delete resource
+	singletonPool{pool}.freeResource(ctx, client, "client1")
+
+	// Query resource
+	log.Println(singletonPool{pool}.queryResource(ctx, client, "client1"))
 }
 
-func createVlan(ctx context.Context, client *ent.Client) (*ent.Resource, error) {
-	resType, err := queryRType(ctx, client)
-	propertyType, err := resType.QueryPropertyTypes().
-		Where(propertytype.Name("vlan")).
-		Only(ctx)
-
-	client.Property.Create().
-		SetIntVal(111).
-		SetType(propertyType).
-		Save(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed creating property type: %v", err)
-	}
-
-	r, err := client.Resource.Create().
-		SetName("vlan1").
-		SetType(resType).
-		Save(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed creating property type: %v", err)
-	}
-	fmt.Println("resource was created: ", r)
-	return r, nil
+// Extension functions for singleton type pool entity
+type singletonPool struct {
+	*ent.ResourcePool
 }
 
-func queryRType(ctx context.Context, client *ent.Client) (*ent.ResourceType, error) {
-	u, err := client.ResourceType.
-		Query().
-		Where(resourcetype.NameEQ("Vlan")).
-		Only(ctx)
+func (pool singletonPool) claimResource(ctx context.Context, client *ent.Client, scope string) (*ent.Resource, error) {
+	claim, err := WithTx(ctx, client, func(tx *ent.Tx) (interface{}, error) {
+		return pool.claimResourceInner(ctx, tx.Client(), scope)
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("failed querying resource types: %v", err)
+		return nil, errors.Wrapf(err, "Unable to claim a resource")
 	}
-	return u, nil
+
+	return claim.(*ent.Resource), nil
+}
+
+func (pool singletonPool) claimResourceInner(
+	ctx context.Context,
+	client *ent.Client,
+	scope string) (*ent.Resource, error) {
+	res, err := pool.queryResource(ctx, client, scope)
+
+	// Resource exists for the scope, return the same one
+	if res != nil {
+		return res, nil
+	}
+
+	// Allocate new resource for this scope
+	if ent.IsNotFound(err) {
+		return client.Resource.Create().
+			SetPool(pool.ResourcePool).
+			SetScope(scope).
+			Save(ctx)
+
+		// TODO properties
+	}
+
+	return res, err
+}
+
+func (pool singletonPool) freeResource(ctx context.Context, client *ent.Client, scope string) {
+	client.Resource.Delete().
+		Where(resource.HasPoolWith(resourcePool.ID(pool.ID))).
+		Where(resource.ScopeEQ(scope)).
+		Exec(ctx)
+}
+
+func (pool singletonPool) queryResource(
+	ctx context.Context,
+	client *ent.Client,
+	scope string) (*ent.Resource, error) {
+	resource, err := client.Resource.Query().
+		Where(resource.HasPoolWith(resourcePool.ID(pool.ID))).
+		Where(resource.ScopeEQ(scope)).
+		Only(ctx)
+
+	return resource, err
+}
+
+type txFunction func(tx *ent.Tx) (interface{}, error)
+
+// WithTx function executes a lambda function within a tx
+func WithTx(
+	ctx context.Context,
+	client *ent.Client,
+	fn txFunction) (interface{}, error) {
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if v := recover(); v != nil {
+			tx.Rollback()
+			panic(v)
+		}
+	}()
+	retVal, err := fn(tx)
+	if err != nil {
+		if rerr := tx.Rollback(); rerr != nil {
+			err = errors.Wrapf(err, "rolling back transaction: %v", rerr)
+		}
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, errors.Wrapf(err, "committing transaction: %v", err)
+	}
+	return retVal, nil
 }

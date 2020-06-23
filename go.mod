@@ -13,8 +13,11 @@ require (
 	github.com/google/wire v0.4.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.2.1
+	github.com/stretchr/testify v1.5.1
 	github.com/ugorji/go/codec v1.1.7
+	github.com/vektah/gqlparser/v2 v2.0.1
 	go.opencensus.io v0.22.3
 	go.uber.org/zap v1.10.0
 	gocloud.dev v0.20.0
