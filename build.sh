@@ -11,4 +11,5 @@ go generate ./ent
 
 echo ""
 echo "Executing main.go"
-go run main.go
+go build
+./resourceManager
