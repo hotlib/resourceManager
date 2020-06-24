@@ -2,6 +2,7 @@ package pools
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"testing"
 
@@ -100,4 +101,24 @@ func TestClaimResoource(t *testing.T) {
 	if claim2.QueryProperties().AllX(ctx)[0].IntVal != int(44) {
 		t.Fatalf("Wrong property in resource claim: %s", claim)
 	}
+
+	pool.FreeResource(Scope{"customer1"})
+	pool.FreeResource(Scope{"customer2"})
+}
+
+func Testabc(t *testing.T) {
+	ctx := getContext()
+	client := openDb(ctx)
+	defer client.Close()
+	resType := getResourceType(ctx, client)
+
+	pool, _ := NewSingletonPool(ctx, client, resType, map[string]interface{}{
+		"vlan": 44,
+	}, "singleton")
+
+	someFunc(pool)
+}
+
+func someFunc(pool Pool) {
+	fmt.Println(pool)
 }

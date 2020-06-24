@@ -17,9 +17,10 @@ type Scope struct {
 // Pool is a resource provider
 type Pool interface {
 	ClaimResource(scope Scope) (*ent.Resource, error)
-	FreeResource(scope Scope) (*ent.Resource, error)
+	FreeResource(scope Scope) error
 	QueryResource(scope Scope) (*ent.Resource, error)
 	QueryResources() (ent.Resources, error)
+	Destroy() error
 }
 
 // SingletonPool provides only a single resource that can be reclaimed under various scopes
@@ -39,7 +40,7 @@ func NewSingletonPool(
 	client *ent.Client,
 	resourceType *ent.ResourceType,
 	propertyValues map[string]interface{},
-	poolName string) (*SingletonPool, error) {
+	poolName string) (Pool, error) {
 
 	pool, err := WithTx(ctx, client, func(tx *ent.Tx) (interface{}, error) {
 		return newSingletonPoolInner(ctx, tx.Client(), resourceType, propertyValues, poolName)
@@ -262,17 +263,13 @@ func (pool SingletonPool) freeResourceInner(client *ent.Client, scope Scope) err
 	res, err := client.Resource.Query().
 		Where(resource.HasPoolWith(resourcePool.ID(pool.ID))).
 		Where(resource.ScopeEQ(scope.Scope)).
+		WithProperties().
 		Only(pool.ctx)
 	if err != nil {
 		return err
 	}
 
-	props, err := res.QueryProperties().All(pool.ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, pp := range props {
+	for _, pp := range res.Edges.Properties {
 		if err = client.Property.DeleteOne(pp).Exec(pool.ctx); err != nil {
 			return err
 		}
@@ -293,12 +290,13 @@ func (pool SingletonPool) queryResourceInner(client *ent.Client, scope Scope) (*
 	resource, err := client.Resource.Query().
 		Where(resource.HasPoolWith(resourcePool.ID(pool.ID))).
 		Where(resource.ScopeEQ(scope.Scope)).
+		WithProperties().
 		Only(pool.ctx)
 
 	return resource, err
 }
 
-func (pool SingletonPool) QueryResources() ([]*ent.Resource, error) {
+func (pool SingletonPool) QueryResources() (ent.Resources, error) {
 	return pool.queryResourcesInner(pool.client)
 }
 
