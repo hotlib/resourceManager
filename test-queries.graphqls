@@ -1,0 +1,21 @@
+query getCustomer{
+  QueryResource(input: {
+    scope: "customer"
+  }){
+    config
+  }
+}
+
+mutation addCustomer{
+  ClaimResource(input: {
+    scope:"customer"
+  }){
+    config
+  }
+}
+
+mutation freeCustomer{
+  FreeResource(input: {
+    scope:"customer"
+  })
+}
