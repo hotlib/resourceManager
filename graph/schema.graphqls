@@ -1,13 +1,18 @@
-type Testdata  {
-  id: ID!
-  attr: String!
+input Scope {
+  scope: String!
+}
+
+type Resource  {
+  config: String!
 }
 
 type Query {
-  testdata: [Testdata!]!
+  QueryResource(input: Scope!): Resource!
+  QueryResources: [Resource]!
 }
 
 type Mutation {
-  createTestdata(input: String!): Testdata!
+  ClaimResource(input: Scope!): Resource!
+  FreeResource(input: Scope!): String!
 }
 

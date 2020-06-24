@@ -1,7 +1,9 @@
 package graph
 
-// This file will not be regenerated automatically.
-//
-// It serves as dependency injection for your app, add any dependencies you require here.
+import (
+	p "github.com/marosmars/resourceManager/pools"
+)
 
-type Resolver struct{}
+type Resolver struct{
+	Pool p.Pool
+}

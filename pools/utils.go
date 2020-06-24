@@ -2,6 +2,9 @@ package pools
 
 import (
     "context"
+    "github.com/marosmars/resourceManager/authz"
+    "github.com/marosmars/resourceManager/authz/models"
+    "log"
 
     "github.com/marosmars/resourceManager/ent"
     "github.com/pkg/errors"
@@ -36,4 +39,25 @@ func WithTx(
         return nil, errors.Wrapf(err, "committing transaction: %v", err)
     }
     return retVal, nil
+}
+
+func GetContext() context.Context {
+    ctx := context.Background()
+    ctx = authz.NewContext(ctx, &models.PermissionSettings{
+        CanWrite:        true,
+        WorkforcePolicy: authz.NewWorkforcePolicy(true, true)})
+    return ctx
+}
+
+func OpenDb(ctx context.Context) *ent.Client {
+    client, err := ent.Open("sqlite3", "file:ent?mode=memory&cache=shared&_fk=1")
+    if err != nil {
+        log.Fatalf("failed opening connection to sqlite: %v", err)
+    }
+    // run the auto migration tool.
+    if err := client.Schema.Create(ctx); err != nil {
+        log.Fatalf("failed creating schema resources: %v", err)
+    }
+
+    return client
 }
