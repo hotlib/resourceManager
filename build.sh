@@ -8,8 +8,15 @@ echo "------> Removing all gen_* files"
 find . -type f -name 'gen_*' -delete
 
 go generate ./ent
+go generate ./graph/graphql
 
 echo ""
-echo "Executing main.go"
+echo "------> Building"
+
 go build
-./resourceManager
+
+echo ""
+echo "------> Testing"
+
+go test ./pools/...
+go test ./graph/...

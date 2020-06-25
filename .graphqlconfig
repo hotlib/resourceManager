@@ -1,0 +1,10 @@
+
+{
+  "extensions": {
+    "endpoints": {
+      "dev": {
+        "url": "http://localhost:8080/query"
+      }
+    }
+  }
+}

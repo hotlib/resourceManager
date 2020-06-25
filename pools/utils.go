@@ -49,7 +49,7 @@ func GetContext() context.Context {
     return ctx
 }
 
-func OpenDb(ctx context.Context) *ent.Client {
+func OpenTestDb(ctx context.Context) *ent.Client {
     client, err := ent.Open("sqlite3", "file:ent?mode=memory&cache=shared&_fk=1")
     if err != nil {
         log.Fatalf("failed opening connection to sqlite: %v", err)

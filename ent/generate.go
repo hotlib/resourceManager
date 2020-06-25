@@ -12,5 +12,3 @@ package ent
 //go:generate echo "------> Generating finished"
 
 //go:generate ./rename_generated_files.sh
-
-//go:generate echo "======> Done !"

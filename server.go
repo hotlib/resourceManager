@@ -2,16 +2,16 @@ package main
 
 import (
 	"context"
-	"github.com/marosmars/resourceManager/ent"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/marosmars/resourceManager/ent"
 	_ "github.com/marosmars/resourceManager/ent/runtime"
-	"github.com/marosmars/resourceManager/graph"
-	"github.com/marosmars/resourceManager/graph/generated"
+	"github.com/marosmars/resourceManager/graph/graphql/generated"
+	"github.com/marosmars/resourceManager/graph/graphql/resolver"
 	"github.com/marosmars/resourceManager/pools"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -34,10 +34,7 @@ func getResourceType(ctx context.Context, client *ent.Client) *ent.ResourceType 
 	return resType
 }
 
-//TODO 	defer client.Close() where??
-func initDummyPool() pools.Pool {
-	ctx := pools.GetContext()
-	client := pools.OpenDb(ctx)
+func initDummyPool(ctx context.Context, client *ent.Client) pools.Pool {
 	resType := getResourceType(ctx, client)
 	pool, _ := pools.NewSingletonPool(ctx, client, resType, map[string]interface{}{
 		"vlan": 44,
@@ -51,9 +48,13 @@ func main() {
 		port = defaultPort
 	}
 
-	var pool = initDummyPool()
+	ctx := pools.GetContext()
+	client := pools.OpenTestDb(ctx)
+	defer client.Close()
+	
+	var pool = initDummyPool(ctx, client)
 
-	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{Pool: pool}}))
+	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &resolver.Resolver{Pool: pool}}))
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)

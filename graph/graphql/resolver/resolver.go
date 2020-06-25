@@ -1,4 +1,4 @@
-package graph
+package resolver
 
 import (
 	p "github.com/marosmars/resourceManager/pools"
