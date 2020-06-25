@@ -6,7 +6,12 @@
 
 echo ""
 echo "------> Downloading magma master to /tmp/magma.zip"
-curl -s -L https://github.com/facebookincubator/magma/archive/master.zip --output /tmp/magma.zip
+if [ -f /tmp/magma.zip ]; then
+    echo "------> Skipping magma download, archive already present in /tmp/magma.zip, Remove it if you need redownload !"
+    sleep 1
+else
+    curl -s -L https://github.com/facebookincubator/magma/archive/master.zip --output /tmp/magma.zip
+fi
 
 
 # Copy all entities from inventory

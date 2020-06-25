@@ -224,7 +224,7 @@ func (pool SingletonPool) claimResourceInner(client *ent.Client, scope Scope) (*
 
 	// Allocate new resource for this scope
 	if ent.IsNotFound(err) {
-		blueprintRes, err := pool.queryResourceInner(client, Scope{SINGLETON_BLUEPRINT_RESOURCE})
+		blueprintRes, err := pool.queryBlueprintResourceEager(client)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Unable to find singleton blueprint resource in pool \"%s\"",
 				pool.ResourcePool.Name)
@@ -238,8 +238,30 @@ func (pool SingletonPool) claimResourceInner(client *ent.Client, scope Scope) (*
 }
 
 func (pool SingletonPool) copyResourceWithNewScope(client *ent.Client, res *ent.Resource, scope Scope) (*ent.Resource, error) {
-	// FIXME copy over properties
-	return client.Resource.Create().SetPool(pool.ResourcePool).SetScope(scope.Scope).Save(pool.ctx)
+	props, err := res.QueryProperties().WithType().All(pool.ctx)
+	if err != nil {
+		return nil, err
+	}
+	
+	// copy properties from blueprint so that each claim has its own
+	var copiedProps ent.Properties
+	for _, pp := range props {
+		builder := client.Property.CreateFrom(pp)
+		if copiedProp, err := builder.Save(pool.ctx); err != nil {
+			return nil, err
+		} else {
+			copiedProps = append(copiedProps, copiedProp)
+		}
+
+	}
+
+	// start with a copy of blueprint resource
+	return client.Resource.CreateFrom(res).
+		// override scope
+		SetScope(scope.Scope). 
+		// set copied property instances
+		AddProperties(copiedProps...).
+		Save(pool.ctx)
 }
 
 func (pool SingletonPool) FreeResource(scope Scope) error {
@@ -290,7 +312,17 @@ func (pool SingletonPool) queryResourceInner(client *ent.Client, scope Scope) (*
 	resource, err := client.Resource.Query().
 		Where(resource.HasPoolWith(resourcePool.ID(pool.ID))).
 		Where(resource.ScopeEQ(scope.Scope)).
-		WithProperties().
+		Only(pool.ctx)
+
+	return resource, err
+}
+
+// load eagerly with all edges
+func (pool SingletonPool) queryBlueprintResourceEager(client *ent.Client) (*ent.Resource, error) {
+	resource, err := client.Resource.Query().
+		Where(resource.HasPoolWith(resourcePool.ID(pool.ID))).
+		Where(resource.ScopeEQ(SINGLETON_BLUEPRINT_RESOURCE)).
+		WithPool().
 		Only(pool.ctx)
 
 	return resource, err

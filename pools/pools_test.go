@@ -79,28 +79,81 @@ func TestClaimResoource(t *testing.T) {
 		"vlan": 44,
 	}, "singleton")
 
-	claim, err := pool.ClaimResource(Scope{"customer1"})
+	claim1, err := pool.ClaimResource(Scope{"customer1"})
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(claim)
-	
+	t.Log(claim1)
+	if claim1.Scope != "customer1" {
+		t.Fatalf("Wrong scope in %s", claim1)
+	}
+
 	claim2, err := pool.ClaimResource(Scope{"customer2"})
 	if err != nil {
 		t.Error(err)
 	}
 	t.Log(claim2)
+	if claim2.Scope != "customer2" {
+		t.Fatalf("Wrong scope in %s", claim2)
+	}
 
-	if len(claim.QueryProperties().AllX(ctx)) != 1 {
-		t.Fatalf("Missing properties in resource claim: %s", claim)
+	entityPool := pool.(*SingletonPool).ResourcePool
+	if claim1.QueryPool().OnlyX(ctx).ID != entityPool.ID {
+		t.Fatalf("Wrong resource pool set expected: %s but was: %s",
+			entityPool, claim1.QueryPool().OnlyX(ctx))
 	}
-	if claim.QueryProperties().AllX(ctx)[0].IntVal != int(44) {
-		t.Fatalf("Wrong property in resource claim: %s", claim)
+	if claim2.QueryPool().OnlyX(ctx).ID != entityPool.ID {
+		t.Fatalf("Wrong resource pool set expected %s but was: %s",
+			entityPool, claim2.QueryPool().OnlyX(ctx))
 	}
-	if claim2.QueryProperties().AllX(ctx)[0].IntVal != int(44) {
-		t.Fatalf("Wrong property in resource claim: %s", claim)
+
+	claimProps1 := claim1.QueryProperties().AllX(ctx)
+	claimProps2 := claim2.QueryProperties().AllX(ctx)
+	if len(claimProps1) != 1 {
+		t.Fatalf("Missing properties in resource claim: %s", claim1)
+	}
+	if claimProps1[0].IntVal != int(44) {
+		t.Fatalf("Wrong property in resource claim: %s", claim1)
+	}
+
+	if claimProps2[0].IntVal != int(44) {
+		t.Fatalf("Wrong property in resource claim: %s", claim1)
+	}
+
+	allProps := client.Property.Query().AllX(ctx)
+	if len(allProps) != 3 {
+		t.Fatalf("3 different properties expected, got: %s", allProps)
+	}
+	allResources := client.Resource.Query().AllX(ctx)
+	if len(allResources) != 3 {
+		t.Fatalf("3 different resources expected, got: %s", allResources)
+	}
+	allResourceTypes := client.ResourceType.Query().AllX(ctx)
+	if len(allResourceTypes) != 1 {
+		t.Fatalf("1 resource type expected, got: %s", allResourceTypes)
+	}
+	allPools := client.ResourcePool.Query().AllX(ctx)
+	if len(allPools) != 1 {
+		t.Fatalf("1 pool expected, got: %s", allPools)
 	}
 
 	pool.FreeResource(Scope{"customer1"})
 	pool.FreeResource(Scope{"customer2"})
+
+	allProps = client.Property.Query().AllX(ctx)
+	if len(allProps) != 1 {
+		t.Fatalf("1 different properties expected, got: %s", allProps)
+	}
+	allResources = client.Resource.Query().AllX(ctx)
+	if len(allResources) != 1 {
+		t.Fatalf("1 different resources expected, got: %s", allResources)
+	}
+	allResourceTypes = client.ResourceType.Query().AllX(ctx)
+	if len(allResourceTypes) != 1 {
+		t.Fatalf("1 resource type expected, got: %s", allResourceTypes)
+	}
+	allPools = client.ResourcePool.Query().AllX(ctx)
+	if len(allPools) != 1 {
+		t.Fatalf("1 pool expected, got: %s", allPools)
+	}
 }
