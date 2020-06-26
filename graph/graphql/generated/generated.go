@@ -12,6 +12,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
+	"github.com/marosmars/resourceManager/ent"
 	"github.com/marosmars/resourceManager/graph/graphql/model"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -37,6 +38,7 @@ type Config struct {
 type ResolverRoot interface {
 	Mutation() MutationResolver
 	Query() QueryResolver
+	Resource() ResourceResolver
 }
 
 type DirectiveRoot struct {
@@ -55,16 +57,21 @@ type ComplexityRoot struct {
 
 	Resource struct {
 		Config func(childComplexity int) int
+		ID     func(childComplexity int) int
+		Scope  func(childComplexity int) int
 	}
 }
 
 type MutationResolver interface {
-	ClaimResource(ctx context.Context, input model.Scope) (*model.Resource, error)
+	ClaimResource(ctx context.Context, input model.Scope) (*ent.Resource, error)
 	FreeResource(ctx context.Context, input model.Scope) (string, error)
 }
 type QueryResolver interface {
-	QueryResource(ctx context.Context, input model.Scope) (*model.Resource, error)
-	QueryResources(ctx context.Context) ([]*model.Resource, error)
+	QueryResource(ctx context.Context, input model.Scope) (*ent.Resource, error)
+	QueryResources(ctx context.Context) ([]*ent.Resource, error)
+}
+type ResourceResolver interface {
+	Config(ctx context.Context, obj *ent.Resource) (string, error)
 }
 
 type executableSchema struct {
@@ -132,6 +139,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Resource.Config(childComplexity), true
 
+	case "Resource.ID":
+		if e.complexity.Resource.ID == nil {
+			break
+		}
+
+		return e.complexity.Resource.ID(childComplexity), true
+
+	case "Resource.Scope":
+		if e.complexity.Resource.Scope == nil {
+			break
+		}
+
+		return e.complexity.Resource.Scope(childComplexity), true
+
 	}
 	return 0, false
 }
@@ -196,12 +217,23 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 }
 
 var sources = []*ast.Source{
-	&ast.Source{Name: "schema/schema.graphql", Input: `input Scope {
+	&ast.Source{Name: "schema/schema.graphql", Input: `directive @goModel(model: String, models: [String!]) on OBJECT
+  | INPUT_OBJECT
+  | SCALAR
+  | ENUM
+  | INTERFACE
+  | UNION
+
+input Scope {
   scope: String!
 }
 
-type Resource  {
+type Resource
+@goModel(model: "github.com/marosmars/resourceManager/ent.Resource")
+{
   config: String!
+  ID: Int!
+  Scope: String!
 }
 
 type Query {
@@ -350,9 +382,9 @@ func (ec *executionContext) _Mutation_ClaimResource(ctx context.Context, field g
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Resource)
+	res := resTmp.(*ent.Resource)
 	fc.Result = res
-	return ec.marshalNResource2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋgraphᚋgraphqlᚋmodelᚐResource(ctx, field.Selections, res)
+	return ec.marshalNResource2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResource(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_FreeResource(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -432,9 +464,9 @@ func (ec *executionContext) _Query_QueryResource(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Resource)
+	res := resTmp.(*ent.Resource)
 	fc.Result = res
-	return ec.marshalNResource2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋgraphᚋgraphqlᚋmodelᚐResource(ctx, field.Selections, res)
+	return ec.marshalNResource2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResource(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_QueryResources(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -466,9 +498,9 @@ func (ec *executionContext) _Query_QueryResources(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.Resource)
+	res := resTmp.([]*ent.Resource)
 	fc.Result = res
-	return ec.marshalNResource2ᚕᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋgraphᚋgraphqlᚋmodelᚐResource(ctx, field.Selections, res)
+	return ec.marshalNResource2ᚕᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResource(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -540,7 +572,41 @@ func (ec *executionContext) _Query___schema(ctx context.Context, field graphql.C
 	return ec.marshalO__Schema2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Resource_config(ctx context.Context, field graphql.CollectedField, obj *model.Resource) (ret graphql.Marshaler) {
+func (ec *executionContext) _Resource_config(ctx context.Context, field graphql.CollectedField, obj *ent.Resource) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Resource",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Resource().Config(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Resource_ID(ctx context.Context, field graphql.CollectedField, obj *ent.Resource) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -557,7 +623,41 @@ func (ec *executionContext) _Resource_config(ctx context.Context, field graphql.
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Config, nil
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Resource_Scope(ctx context.Context, field graphql.CollectedField, obj *ent.Resource) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Resource",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Scope, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1751,7 +1851,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 
 var resourceImplementors = []string{"Resource"}
 
-func (ec *executionContext) _Resource(ctx context.Context, sel ast.SelectionSet, obj *model.Resource) graphql.Marshaler {
+func (ec *executionContext) _Resource(ctx context.Context, sel ast.SelectionSet, obj *ent.Resource) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, resourceImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -1761,9 +1861,28 @@ func (ec *executionContext) _Resource(ctx context.Context, sel ast.SelectionSet,
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Resource")
 		case "config":
-			out.Values[i] = ec._Resource_config(ctx, field, obj)
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Resource_config(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "ID":
+			out.Values[i] = ec._Resource_ID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
+			}
+		case "Scope":
+			out.Values[i] = ec._Resource_Scope(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -2035,11 +2154,25 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) marshalNResource2githubᚗcomᚋmarosmarsᚋresourceManagerᚋgraphᚋgraphqlᚋmodelᚐResource(ctx context.Context, sel ast.SelectionSet, v model.Resource) graphql.Marshaler {
+func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
+	return graphql.UnmarshalInt(v)
+}
+
+func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
+	res := graphql.MarshalInt(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) marshalNResource2githubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResource(ctx context.Context, sel ast.SelectionSet, v ent.Resource) graphql.Marshaler {
 	return ec._Resource(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNResource2ᚕᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋgraphᚋgraphqlᚋmodelᚐResource(ctx context.Context, sel ast.SelectionSet, v []*model.Resource) graphql.Marshaler {
+func (ec *executionContext) marshalNResource2ᚕᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResource(ctx context.Context, sel ast.SelectionSet, v []*ent.Resource) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -2063,7 +2196,7 @@ func (ec *executionContext) marshalNResource2ᚕᚖgithubᚗcomᚋmarosmarsᚋre
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalOResource2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋgraphᚋgraphqlᚋmodelᚐResource(ctx, sel, v[i])
+			ret[i] = ec.marshalOResource2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResource(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -2076,7 +2209,7 @@ func (ec *executionContext) marshalNResource2ᚕᚖgithubᚗcomᚋmarosmarsᚋre
 	return ret
 }
 
-func (ec *executionContext) marshalNResource2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋgraphᚋgraphqlᚋmodelᚐResource(ctx context.Context, sel ast.SelectionSet, v *model.Resource) graphql.Marshaler {
+func (ec *executionContext) marshalNResource2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResource(ctx context.Context, sel ast.SelectionSet, v *ent.Resource) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2353,11 +2486,11 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return ec.marshalOBoolean2bool(ctx, sel, *v)
 }
 
-func (ec *executionContext) marshalOResource2githubᚗcomᚋmarosmarsᚋresourceManagerᚋgraphᚋgraphqlᚋmodelᚐResource(ctx context.Context, sel ast.SelectionSet, v model.Resource) graphql.Marshaler {
+func (ec *executionContext) marshalOResource2githubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResource(ctx context.Context, sel ast.SelectionSet, v ent.Resource) graphql.Marshaler {
 	return ec._Resource(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalOResource2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋgraphᚋgraphqlᚋmodelᚐResource(ctx context.Context, sel ast.SelectionSet, v *model.Resource) graphql.Marshaler {
+func (ec *executionContext) marshalOResource2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResource(ctx context.Context, sel ast.SelectionSet, v *ent.Resource) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -2370,6 +2503,38 @@ func (ec *executionContext) unmarshalOString2string(ctx context.Context, v inter
 
 func (ec *executionContext) marshalOString2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
 	return graphql.MarshalString(v)
+}
+
+func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v interface{}) ([]string, error) {
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
