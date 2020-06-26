@@ -1,9 +1,20 @@
+directive @goModel(model: String, models: [String!]) on OBJECT
+  | INPUT_OBJECT
+  | SCALAR
+  | ENUM
+  | INTERFACE
+  | UNION
+
 input Scope {
   scope: String!
 }
 
-type Resource  {
+type Resource
+@goModel(model: "github.com/marosmars/resourceManager/ent.Resource")
+{
   config: String!
+  ID: Int!
+  Scope: String!
 }
 
 type Query {

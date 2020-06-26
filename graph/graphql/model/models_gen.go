@@ -2,10 +2,6 @@
 
 package model
 
-type Resource struct {
-	Config string `json:"config"`
-}
-
 type Scope struct {
 	Scope string `json:"scope"`
 }
