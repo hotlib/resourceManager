@@ -1,29 +1,49 @@
 directive @goModel(model: String, models: [String!]) on OBJECT
-  | INPUT_OBJECT
-  | SCALAR
-  | ENUM
-  | INTERFACE
-  | UNION
+    | INPUT_OBJECT
+    | SCALAR
+    | ENUM
+    | INTERFACE
+    | UNION
 
 input Scope {
-  scope: String!
+    scope: String!
+}
+
+type ResoucePool
+@goModel(model: "github.com/marosmars/resourceManager/ent.ResourcePool")
+{
+    ID: Int!
+}
+
+type Property
+@goModel(model: "github.com/marosmars/resourceManager/ent.Property")
+{
+   ID: Int!
+   property_type: Int!
+}
+
+type ResourceEdges
+@goModel(model: "github.com/marosmars/resourceManager/ent.ResourceEdges")
+{
+    Pool: ResoucePool
+    Properties: Property
 }
 
 type Resource
 @goModel(model: "github.com/marosmars/resourceManager/ent.Resource")
 {
-  config: String!
-  ID: Int!
-  Scope: String!
+    ID: Int!
+    Scope: String!
+    Edges: ResourceEdges
 }
 
 type Query {
-  QueryResource(input: Scope!): Resource!
-  QueryResources: [Resource]!
+    QueryResource(input: Scope!): Resource!
+    QueryResources: [Resource]!
 }
 
 type Mutation {
-  ClaimResource(input: Scope!): Resource!
-  FreeResource(input: Scope!): String!
+    ClaimResource(input: Scope!): Resource!
+    FreeResource(input: Scope!): String!
 }
 

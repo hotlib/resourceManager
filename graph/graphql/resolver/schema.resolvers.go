@@ -5,11 +5,11 @@ package resolver
 
 import (
 	"context"
+	"fmt"
 	"github.com/marosmars/resourceManager/ent"
 	"github.com/marosmars/resourceManager/graph/graphql/generated"
 	"github.com/marosmars/resourceManager/graph/graphql/model"
 	"github.com/marosmars/resourceManager/pools"
-	"strconv"
 )
 
 func (r *mutationResolver) ClaimResource(ctx context.Context, input model.Scope) (*ent.Resource, error) {
@@ -24,6 +24,11 @@ func (r *mutationResolver) FreeResource(ctx context.Context, input model.Scope) 
 	return err.Error(), err
 }
 
+func (r *propertyResolver) PropertyType(ctx context.Context, obj *ent.Property) (int, error) {
+	//TODO get property-type for Property
+	panic(fmt.Errorf("not implemented"))
+}
+
 func (r *queryResolver) QueryResource(ctx context.Context, input model.Scope) (*ent.Resource, error) {
 	return r.Pool.QueryResource(pools.Scope{Scope: input.Scope})
 }
@@ -32,19 +37,21 @@ func (r *queryResolver) QueryResources(ctx context.Context) ([]*ent.Resource, er
 	return r.Pool.QueryResources()
 }
 
-func (r *resourceResolver) Config(ctx context.Context, obj *ent.Resource) (string, error) {
-	return "Name:" + obj.Scope + " ID: " + strconv.Itoa(obj.ID), nil
+func (r *resourceEdgesResolver) Properties(ctx context.Context, obj *ent.ResourceEdges) (*ent.Property, error) {
+	//TODO get properties for ResourceEdge
+	panic(fmt.Errorf("not implemented"))
 }
 
-// Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
-// Query returns generated.QueryResolver implementation.
+func (r *Resolver) Property() generated.PropertyResolver { return &propertyResolver{r} }
+
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
-// Resource returns generated.ResourceResolver implementation.
-func (r *Resolver) Resource() generated.ResourceResolver { return &resourceResolver{r} }
+func (r *Resolver) ResourceEdges() generated.ResourceEdgesResolver { return &resourceEdgesResolver{r} }
 
 type mutationResolver struct{ *Resolver }
+type propertyResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-type resourceResolver struct{ *Resolver }
+type resourceEdgesResolver struct{ *Resolver }
+
