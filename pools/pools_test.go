@@ -3,6 +3,7 @@ package pools
 import (
 	"context"
 	"log"
+	"reflect"
 	"testing"
 
 	"github.com/marosmars/resourceManager/authz"
@@ -120,40 +121,33 @@ func TestClaimResoource(t *testing.T) {
 		t.Fatalf("Wrong property in resource claim: %s", claim1)
 	}
 
-	allProps := client.Property.Query().AllX(ctx)
-	if len(allProps) != 3 {
-		t.Fatalf("3 different properties expected, got: %s", allProps)
-	}
-	allResources := client.Resource.Query().AllX(ctx)
-	if len(allResources) != 3 {
-		t.Fatalf("3 different resources expected, got: %s", allResources)
-	}
-	allResourceTypes := client.ResourceType.Query().AllX(ctx)
-	if len(allResourceTypes) != 1 {
-		t.Fatalf("1 resource type expected, got: %s", allResourceTypes)
-	}
-	allPools := client.ResourcePool.Query().AllX(ctx)
-	if len(allPools) != 1 {
-		t.Fatalf("1 pool expected, got: %s", allPools)
-	}
+	assertDb(ctx, client, t, 1, 1, 1, 3, 3)
 
 	pool.FreeResource(Scope{"customer1"})
 	pool.FreeResource(Scope{"customer2"})
 
-	allProps = client.Property.Query().AllX(ctx)
-	if len(allProps) != 1 {
-		t.Fatalf("1 different properties expected, got: %s", allProps)
+	assertDb(ctx, client, t, 1, 1, 1, 1, 1)
+
+	pool.Destroy()
+
+	assertDb(ctx, client, t, 1, 1, 0, 0, 0)
+}
+
+func assertDb(ctx context.Context, client *ent.Client, t *testing.T, count ...int) {
+	assertInstancesInDb(client.PropertyType.Query().AllX(ctx), count[0], t)
+	assertInstancesInDb(client.ResourceType.Query().AllX(ctx), count[1], t)
+	assertInstancesInDb(client.ResourcePool.Query().AllX(ctx), count[2], t)
+	assertInstancesInDb(client.Property.Query().AllX(ctx), count[3], t)
+	assertInstancesInDb(client.Resource.Query().AllX(ctx), count[4], t)
+}
+
+func assertInstancesInDb(instances interface{}, expected int, t *testing.T) {
+	slice := reflect.ValueOf(instances)
+	if slice.Kind() != reflect.Slice {
+		t.Fatalf("%s is not a slice, cannot assert length", instances)
 	}
-	allResources = client.Resource.Query().AllX(ctx)
-	if len(allResources) != 1 {
-		t.Fatalf("1 different resources expected, got: %s", allResources)
-	}
-	allResourceTypes = client.ResourceType.Query().AllX(ctx)
-	if len(allResourceTypes) != 1 {
-		t.Fatalf("1 resource type expected, got: %s", allResourceTypes)
-	}
-	allPools = client.ResourcePool.Query().AllX(ctx)
-	if len(allPools) != 1 {
-		t.Fatalf("1 pool expected, got: %s", allPools)
+
+	if slice.Len() != expected {
+		t.Fatalf("%d different properties expected, got: %s", expected, slice)
 	}
 }
