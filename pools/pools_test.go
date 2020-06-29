@@ -80,21 +80,21 @@ func TestClaimResoource(t *testing.T) {
 		"vlan": 44,
 	}, "singleton")
 
-	claim1, err := pool.ClaimResource(Scope{"customer1"})
+	claim1, err := pool.ClaimResource(ResourceTag{"customer1"})
 	if err != nil {
 		t.Error(err)
 	}
 	t.Log(claim1)
-	if claim1.Scope != "customer1" {
+	if claim1.QueryTag().OnlyX(ctx).Tag != "customer1" {
 		t.Fatalf("Wrong scope in %s", claim1)
 	}
 
-	claim2, err := pool.ClaimResource(Scope{"customer2"})
+	claim2, err := pool.ClaimResource(ResourceTag{"customer2"})
 	if err != nil {
 		t.Error(err)
 	}
 	t.Log(claim2)
-	if claim2.Scope != "customer2" {
+	if claim2.QueryTag().OnlyX(ctx).Tag != "customer2" {
 		t.Fatalf("Wrong scope in %s", claim2)
 	}
 
@@ -121,16 +121,16 @@ func TestClaimResoource(t *testing.T) {
 		t.Fatalf("Wrong property in resource claim: %s", claim1)
 	}
 
-	assertDb(ctx, client, t, 1, 1, 1, 3, 3)
+	assertDb(ctx, client, t, 1, 1, 1, 3, 3, 3)
 
-	pool.FreeResource(Scope{"customer1"})
-	pool.FreeResource(Scope{"customer2"})
+	pool.FreeResource(ResourceTag{"customer1"})
+	pool.FreeResource(ResourceTag{"customer2"})
 
-	assertDb(ctx, client, t, 1, 1, 1, 1, 1)
+	assertDb(ctx, client, t, 1, 1, 1, 1, 1, 1)
 
 	pool.Destroy()
 
-	assertDb(ctx, client, t, 1, 1, 0, 0, 0)
+	assertDb(ctx, client, t, 1, 1, 0, 0, 0, 0)
 }
 
 func assertDb(ctx context.Context, client *ent.Client, t *testing.T, count ...int) {
@@ -139,6 +139,7 @@ func assertDb(ctx context.Context, client *ent.Client, t *testing.T, count ...in
 	assertInstancesInDb(client.ResourcePool.Query().AllX(ctx), count[2], t)
 	assertInstancesInDb(client.Property.Query().AllX(ctx), count[3], t)
 	assertInstancesInDb(client.Resource.Query().AllX(ctx), count[4], t)
+	assertInstancesInDb(client.Tag.Query().AllX(ctx), count[5], t)
 }
 
 func assertInstancesInDb(instances interface{}, expected int, t *testing.T) {
@@ -148,6 +149,6 @@ func assertInstancesInDb(instances interface{}, expected int, t *testing.T) {
 	}
 
 	if slice.Len() != expected {
-		t.Fatalf("%d different properties expected, got: %s", expected, slice)
+		t.Fatalf("%d different instances of %s expected, got: %s", expected, slice.Type(), slice)
 	}
 }

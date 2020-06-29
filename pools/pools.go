@@ -6,24 +6,34 @@ import (
 	"github.com/marosmars/resourceManager/ent"
 	resource "github.com/marosmars/resourceManager/ent/resource"
 	resourcePool "github.com/marosmars/resourceManager/ent/resourcepool"
+	tagged "github.com/marosmars/resourceManager/ent/tag"
 	"github.com/pkg/errors"
 )
 
-// Scope is a unique identifier of a resource claim
-type Scope struct {
-	Scope string
+// ResourceTag is a unique identifier of a resource claim
+type ResourceTag struct {
+	ResourceTag string
+}
+
+type PoolLabel struct {
+	PoolLabel string
 }
 
 // Pool is a resource provider
 type Pool interface {
-	ClaimResource(scope Scope) (*ent.Resource, error)
-	FreeResource(scope Scope) error
-	QueryResource(scope Scope) (*ent.Resource, error)
+	LabeledPool
+	ClaimResource(tag ResourceTag) (*ent.Resource, error)
+	FreeResource(tag ResourceTag) error
+	QueryResource(tag ResourceTag) (*ent.Resource, error)
 	QueryResources() (ent.Resources, error)
 	Destroy() error
 }
 
-// SingletonPool provides only a single resource that can be reclaimed under various scopes
+type LabeledPool interface {
+	AddLabel(label PoolLabel) error
+}
+
+// SingletonPool provides only a single resource that can be reclaimed under various tags
 type SingletonPool struct {
 	*ent.ResourcePool
 
@@ -72,10 +82,14 @@ func newSingletonPoolInner(ctx context.Context,
 		return nil, errors.Wrapf(err, "Unable to create new pool \"%s\". Error parsing properties", poolName)
 	}
 
+	tag, err := client.Tag.Create().
+		SetTag(SINGLETON_BLUEPRINT_RESOURCE).
+		Save(ctx)
+
 	// Create blueprint resource
 	_, err = client.Resource.Create().
 		SetPool(pool).
-		SetScope(SINGLETON_BLUEPRINT_RESOURCE).
+		SetTag(tag).
 		AddProperties(props...).
 		Save(ctx)
 
@@ -103,14 +117,6 @@ func ExistingSingletonPool(
 	if pool.PoolType != resourcePool.PoolTypeSingleton {
 		return nil, errors.Errorf("Wrong pool type \"%s\", expected \"%s\" for pool \"%s\"",
 			pool.PoolType, resourcePool.PoolTypeSingleton, pool.Name)
-	}
-
-	_, err = pool.QueryClaims().
-		Where(resource.ScopeEQ(SINGLETON_BLUEPRINT_RESOURCE)).
-		Only(ctx)
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "Cannot create pool from existing entity due to blueprint resource")
 	}
 
 	return &SingletonPool{pool, ctx, client}, nil
@@ -178,7 +184,7 @@ func (pool SingletonPool) Destroy() error {
 	}
 
 	// Delete resource blueprint
-	err = pool.freeResourceInner(Scope{SINGLETON_BLUEPRINT_RESOURCE})
+	err = pool.freeResourceInner(ResourceTag{SINGLETON_BLUEPRINT_RESOURCE})
 	if err != nil {
 		return errors.Wrapf(err, "Cannot destroy pool \"%s\"", pool.ResourcePool.Name)
 	}
@@ -192,15 +198,20 @@ func (pool SingletonPool) Destroy() error {
 	return nil
 }
 
-func (pool SingletonPool) ClaimResource(scope Scope) (*ent.Resource, error) {
-	res, err := pool.QueryResource(scope)
+func (pool SingletonPool) AddLabel(label PoolLabel) error {
+	// TODO implement labeling
+	return errors.Errorf("NOT IMPLEMENTED")
+}
 
-	// Resource exists for the scope, return the same one
+func (pool SingletonPool) ClaimResource(tag ResourceTag) (*ent.Resource, error) {
+	res, err := pool.QueryResource(tag)
+
+	// Resource exists for the tag, return the same one
 	if res != nil {
 		return res, nil
 	}
 
-	// Allocate new resource for this scope
+	// Allocate new resource for this tag
 	if ent.IsNotFound(err) {
 		blueprintRes, err := pool.queryBlueprintResourceEager()
 		if err != nil {
@@ -208,7 +219,7 @@ func (pool SingletonPool) ClaimResource(scope Scope) (*ent.Resource, error) {
 				pool.ResourcePool.Name)
 		}
 
-		newResource, err := pool.copyResourceWithNewScope(blueprintRes, scope)
+		newResource, err := pool.copyResourceWithNewTag(blueprintRes, tag)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Unable to claim a resource in pool \"%s\"", pool.ResourcePool.Name)
 		}
@@ -218,7 +229,7 @@ func (pool SingletonPool) ClaimResource(scope Scope) (*ent.Resource, error) {
 	return nil, err
 }
 
-func (pool SingletonPool) copyResourceWithNewScope(res *ent.Resource, scope Scope) (*ent.Resource, error) {
+func (pool SingletonPool) copyResourceWithNewTag(res *ent.Resource, tag ResourceTag) (*ent.Resource, error) {
 	props, err := res.QueryProperties().WithType().All(pool.ctx)
 	if err != nil {
 		return nil, err
@@ -236,36 +247,50 @@ func (pool SingletonPool) copyResourceWithNewScope(res *ent.Resource, scope Scop
 
 	}
 
+	createdTag, err := pool.client.Tag.Create().
+		SetTag(tag.ResourceTag).
+		Save(pool.ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// start with a copy of blueprint resource
 	return pool.client.Resource.CreateFrom(res).
-		// override scope
-		SetScope(scope.Scope).
+		// set new tag
+		SetTag(createdTag).
 		// set copied property instances
 		AddProperties(copiedProps...).
 		Save(pool.ctx)
 }
 
-func (pool SingletonPool) FreeResource(scope Scope) error {
-	if scope.Scope == SINGLETON_BLUEPRINT_RESOURCE {
+func (pool SingletonPool) FreeResource(tag ResourceTag) error {
+	if tag.ResourceTag == SINGLETON_BLUEPRINT_RESOURCE {
 		// Do not actually free this, it serves as blueprint
 		return nil
 	}
 
-	return pool.freeResourceInner(scope)
+	return pool.freeResourceInner(tag)
 }
 
-func (pool SingletonPool) freeResourceInner(scope Scope) error {
-	res, err := pool.client.Resource.Query().
-		Where(resource.HasPoolWith(resourcePool.ID(pool.ID))).
-		Where(resource.ScopeEQ(scope.Scope)).
+func (pool SingletonPool) freeResourceInner(tag ResourceTag) error {
+	res, err := pool.FindResource(tag).
 		WithProperties().
+		WithTag().
 		Only(pool.ctx)
 	if err != nil {
 		return err
 	}
 
+	// clean resources
 	for _, pp := range res.Edges.Properties {
 		if err = pool.client.Property.DeleteOne(pp).Exec(pool.ctx); err != nil {
+			return errors.Wrapf(err, "Unable to free a resource in pool \"%s\"", pool.ResourcePool.Name)
+		}
+	}
+	
+	// clean tag if present
+	if res.Edges.Tag != nil {
+		if err = pool.client.Tag.DeleteOne(res.Edges.Tag).Exec(pool.ctx); err != nil {
 			return errors.Wrapf(err, "Unable to free a resource in pool \"%s\"", pool.ResourcePool.Name)
 		}
 	}
@@ -277,10 +302,14 @@ func (pool SingletonPool) freeResourceInner(scope Scope) error {
 	return nil
 }
 
-func (pool SingletonPool) QueryResource(scope Scope) (*ent.Resource, error) {
-	resource, err := pool.client.Resource.Query().
+func (pool SingletonPool) FindResource(tag ResourceTag) *ent.ResourceQuery {
+	return pool.client.Resource.Query().
 		Where(resource.HasPoolWith(resourcePool.ID(pool.ID))).
-		Where(resource.ScopeEQ(scope.Scope)).
+		Where(resource.HasTagWith(tagged.TagEQ(tag.ResourceTag)))
+}
+
+func (pool SingletonPool) QueryResource(tag ResourceTag) (*ent.Resource, error) {
+	resource, err := pool.FindResource(tag).
 		Only(pool.ctx)
 
 	return resource, err
@@ -288,9 +317,7 @@ func (pool SingletonPool) QueryResource(scope Scope) (*ent.Resource, error) {
 
 // load eagerly with some edges, ready to be copied
 func (pool SingletonPool) queryBlueprintResourceEager() (*ent.Resource, error) {
-	resource, err := pool.client.Resource.Query().
-		Where(resource.HasPoolWith(resourcePool.ID(pool.ID))).
-		Where(resource.ScopeEQ(SINGLETON_BLUEPRINT_RESOURCE)).
+	resource, err := pool.FindResource(ResourceTag{SINGLETON_BLUEPRINT_RESOURCE}).
 		WithPool().
 		Only(pool.ctx)
 
