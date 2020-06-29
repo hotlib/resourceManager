@@ -2,7 +2,7 @@ query getCustomer{
   QueryResource(input: {
     scope: "customer"
   }){
-    config
+   Scope
   }
 }
 
@@ -10,7 +10,7 @@ mutation addCustomer{
   ClaimResource(input: {
     scope:"customer"
   }){
-    config
+   Scope
   }
 }
 
