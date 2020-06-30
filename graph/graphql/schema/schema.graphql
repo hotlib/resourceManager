@@ -5,8 +5,10 @@ directive @goModel(model: String, models: [String!]) on OBJECT
     | INTERFACE
     | UNION
 
-input Scope {
-    scope: String!
+input ResourceTag
+@goModel(model: "github.com/marosmars/resourceManager/pools.ResourceTag")
+{
+    ResourceTag: String!
 }
 
 type ResoucePool
@@ -26,24 +28,23 @@ type ResourceEdges
 @goModel(model: "github.com/marosmars/resourceManager/ent.ResourceEdges")
 {
     Pool: ResoucePool
-    Properties: Property
+    Properties: [Property]
 }
 
 type Resource
 @goModel(model: "github.com/marosmars/resourceManager/ent.Resource")
 {
     ID: Int!
-    Scope: String!
     Edges: ResourceEdges
 }
 
 type Query {
-    QueryResource(input: Scope!): Resource!
+    QueryResource(input: ResourceTag!): Resource!
     QueryResources: [Resource]!
 }
 
 type Mutation {
-    ClaimResource(input: Scope!): Resource!
-    FreeResource(input: Scope!): String!
+    ClaimResource(input: ResourceTag!): Resource!
+    FreeResource(input: ResourceTag!): String!
 }
 

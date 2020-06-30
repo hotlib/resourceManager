@@ -14,7 +14,7 @@ import (
 
 // ResourceTag is a unique identifier of a resource claim
 type ResourceTag struct {
-	ResourceTag string
+	ResourceTag string `json:"resourceTag"`
 }
 
 type PoolLabel struct {

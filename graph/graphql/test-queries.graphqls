@@ -1,21 +1,19 @@
-query getCustomer{
-  QueryResource(input: {
-    scope: "customer"
-  }){
-   Scope
+mutation addCustomer {
+  ClaimResource(input: { ResourceTag: "customer123"}) {
+    ID
   }
 }
 
-mutation addCustomer{
-  ClaimResource(input: {
-    scope:"customer"
+query getCustomer{
+  QueryResource(input: {
+    ResourceTag: "customer123"
   }){
-   Scope
+    ID
   }
 }
 
 mutation freeCustomer{
   FreeResource(input: {
-    scope:"customer"
+    ResourceTag:"customer123"
   })
 }

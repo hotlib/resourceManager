@@ -8,7 +8,7 @@ import (
 
 	"github.com/marosmars/resourceManager/ent"
 	"github.com/marosmars/resourceManager/graph/graphql/generated"
-	"github.com/marosmars/resourceManager/graph/graphql/model"
+	"github.com/marosmars/resourceManager/pools"
 )
 
 // txResolver wraps a mutation resolver and executes every mutation under a transaction.
@@ -41,18 +41,21 @@ func (tr txResolver) WithTransaction(ctx context.Context, f func(context.Context
 	return nil
 }
 
-func (tr txResolver) ClaimResource(ctx context.Context, input model.Scope) (*model.Resource, error) {
-	var result, zero *model.Resource
+func (tr txResolver) ClaimResource(ctx context.Context, input pools.ResourceTag) (*ent.Resource, error) {
+	var result, zero *ent.Resource
 	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
 		result, err = mr.ClaimResource(ctx, input)
 		return
 	}); err != nil {
 		return zero, err
 	}
+	if result != nil {
+		result = result.Unwrap()
+	}
 	return result, nil
 }
 
-func (tr txResolver) FreeResource(ctx context.Context, input model.Scope) (string, error) {
+func (tr txResolver) FreeResource(ctx context.Context, input pools.ResourceTag) (string, error) {
 	var result, zero string
 	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
 		result, err = mr.FreeResource(ctx, input)
