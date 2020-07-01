@@ -12,11 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ResourceTag is a unique identifier of a resource claim
-type ResourceTag struct {
-	ResourceTag string `json:"resourceTag"`
-}
-
 type PoolLabel struct {
 	PoolLabel string
 }
@@ -35,7 +30,6 @@ type LabeledPool interface {
 	AddLabel(label PoolLabel) error
 }
 
-// SingletonPool provides only a single resource that can be reclaimed under various tags
 type SetPool struct {
 	*ent.ResourcePool
 
@@ -61,7 +55,7 @@ func NewSetPool(
 
 	// TODO check that propertyValues are unique
 
-	pool, err := newPoolInner(ctx, client, resourceType, propertyValues, poolName)
+	pool, err := newPoolInner(ctx, client, resourceType, propertyValues, poolName, resourcePool.PoolTypeSet)
 
 	if err != nil {
 		return nil, err
@@ -74,10 +68,11 @@ func newPoolInner(ctx context.Context,
 	client *ent.Client,
 	resourceType *ent.ResourceType,
 	propertyValues []RawResourceProps,
-	poolName string) (*ent.ResourcePool, error) {
+	poolName string,
+	poolType resourcePool.PoolType) (*ent.ResourcePool, error) {
 	pool, err := client.ResourcePool.Create().
 		SetName(poolName).
-		SetPoolType("singleton").
+		SetPoolType(poolType).
 		SetResourceType(resourceType).
 		Save(ctx)
 
@@ -121,6 +116,30 @@ func ExistingPool(
 	if err != nil {
 		return nil, errors.Wrapf(err, "Cannot create pool from existing entity")
 	}
+
+	return existingPool(ctx, client, pool)
+}
+
+func ExistingPoolFromId(
+	ctx context.Context,
+	client *ent.Client,
+	poolId int) (Pool, error) {
+
+	pool, err := client.ResourcePool.Query().
+		Where(resourcePool.ID(poolId)).
+		Only(ctx)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Cannot create pool from existing entity")
+	}
+
+	return existingPool(ctx, client, pool)
+}
+
+func existingPool(
+	ctx context.Context,
+	client *ent.Client,
+	pool *ent.ResourcePool) (Pool, error) {
 
 	switch pool.PoolType {
 	case resourcePool.PoolTypeSingleton:

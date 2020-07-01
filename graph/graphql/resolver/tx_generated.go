@@ -40,10 +40,10 @@ func (tr txResolver) WithTransaction(ctx context.Context, f func(context.Context
 	return nil
 }
 
-func (tr txResolver) ClaimResource(ctx context.Context) (*ent.Resource, error) {
+func (tr txResolver) ClaimResource(ctx context.Context, poolName string) (*ent.Resource, error) {
 	var result, zero *ent.Resource
 	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
-		result, err = mr.ClaimResource(ctx)
+		result, err = mr.ClaimResource(ctx, poolName)
 		return
 	}); err != nil {
 		return zero, err
@@ -54,10 +54,10 @@ func (tr txResolver) ClaimResource(ctx context.Context) (*ent.Resource, error) {
 	return result, nil
 }
 
-func (tr txResolver) FreeResource(ctx context.Context, input map[string]interface{}) (string, error) {
+func (tr txResolver) FreeResource(ctx context.Context, input map[string]interface{}, poolName string) (string, error) {
 	var result, zero string
 	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
-		result, err = mr.FreeResource(ctx, input)
+		result, err = mr.FreeResource(ctx, input, poolName)
 		return
 	}); err != nil {
 		return zero, err

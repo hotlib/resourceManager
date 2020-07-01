@@ -1,11 +1,11 @@
-mutation addCustomer {
-  ClaimResource() {
+mutation ClaimResource {
+  ClaimResource(poolName:"testPool") {
     ID
   }
 }
 
-query getCustomer{
-  QueryResources(){
+query QueryResources {
+  QueryResources(poolName:"testPool"){
     ID
   }
 }

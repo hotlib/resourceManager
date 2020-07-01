@@ -44,13 +44,13 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Mutation struct {
-		ClaimResource func(childComplexity int) int
-		FreeResource  func(childComplexity int, input map[string]interface{}) int
+		ClaimResource func(childComplexity int, poolName string) int
+		FreeResource  func(childComplexity int, input map[string]interface{}, poolName string) int
 	}
 
 	Query struct {
-		QueryResource  func(childComplexity int, input map[string]interface{}) int
-		QueryResources func(childComplexity int) int
+		QueryResource  func(childComplexity int, input map[string]interface{}, poolName string) int
+		QueryResources func(childComplexity int, poolName string) int
 	}
 
 	Resource struct {
@@ -59,12 +59,12 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
-	ClaimResource(ctx context.Context) (*ent.Resource, error)
-	FreeResource(ctx context.Context, input map[string]interface{}) (string, error)
+	ClaimResource(ctx context.Context, poolName string) (*ent.Resource, error)
+	FreeResource(ctx context.Context, input map[string]interface{}, poolName string) (string, error)
 }
 type QueryResolver interface {
-	QueryResource(ctx context.Context, input map[string]interface{}) (*ent.Resource, error)
-	QueryResources(ctx context.Context) ([]*ent.Resource, error)
+	QueryResource(ctx context.Context, input map[string]interface{}, poolName string) (*ent.Resource, error)
+	QueryResources(ctx context.Context, poolName string) ([]*ent.Resource, error)
 }
 
 type executableSchema struct {
@@ -87,7 +87,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		return e.complexity.Mutation.ClaimResource(childComplexity), true
+		args, err := ec.field_Mutation_ClaimResource_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ClaimResource(childComplexity, args["poolName"].(string)), true
 
 	case "Mutation.FreeResource":
 		if e.complexity.Mutation.FreeResource == nil {
@@ -99,7 +104,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.FreeResource(childComplexity, args["input"].(map[string]interface{})), true
+		return e.complexity.Mutation.FreeResource(childComplexity, args["input"].(map[string]interface{}), args["poolName"].(string)), true
 
 	case "Query.QueryResource":
 		if e.complexity.Query.QueryResource == nil {
@@ -111,14 +116,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.QueryResource(childComplexity, args["input"].(map[string]interface{})), true
+		return e.complexity.Query.QueryResource(childComplexity, args["input"].(map[string]interface{}), args["poolName"].(string)), true
 
 	case "Query.QueryResources":
 		if e.complexity.Query.QueryResources == nil {
 			break
 		}
 
-		return e.complexity.Query.QueryResources(childComplexity), true
+		args, err := ec.field_Query_QueryResources_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.QueryResources(childComplexity, args["poolName"].(string)), true
 
 	case "Resource.ID":
 		if e.complexity.Resource.ID == nil {
@@ -233,22 +243,34 @@ type Resource
 }
 
 type Query {
-    QueryResource(input: Map!): Resource!
-    QueryResources: [Resource]!
+    QueryResource(input: Map!, poolName: String!): Resource!
+    QueryResources(poolName: String!): [Resource]!
 }
 
 type Mutation {
-    ClaimResource: Resource!
-    FreeResource(input: Map!): String!
-}
-
-`, BuiltIn: false},
+    ClaimResource(poolName: String!): Resource!
+    FreeResource(input: Map!, poolName: String!): String!
+}`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_Mutation_ClaimResource_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["poolName"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["poolName"] = arg0
+	return args, nil
+}
 
 func (ec *executionContext) field_Mutation_FreeResource_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
@@ -261,6 +283,14 @@ func (ec *executionContext) field_Mutation_FreeResource_args(ctx context.Context
 		}
 	}
 	args["input"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["poolName"]; ok {
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["poolName"] = arg1
 	return args, nil
 }
 
@@ -275,6 +305,28 @@ func (ec *executionContext) field_Query_QueryResource_args(ctx context.Context, 
 		}
 	}
 	args["input"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["poolName"]; ok {
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["poolName"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_QueryResources_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["poolName"]; ok {
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["poolName"] = arg0
 	return args, nil
 }
 
@@ -343,9 +395,16 @@ func (ec *executionContext) _Mutation_ClaimResource(ctx context.Context, field g
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_ClaimResource_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().ClaimResource(rctx)
+		return ec.resolvers.Mutation().ClaimResource(rctx, args["poolName"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -386,7 +445,7 @@ func (ec *executionContext) _Mutation_FreeResource(ctx context.Context, field gr
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().FreeResource(rctx, args["input"].(map[string]interface{}))
+		return ec.resolvers.Mutation().FreeResource(rctx, args["input"].(map[string]interface{}), args["poolName"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -427,7 +486,7 @@ func (ec *executionContext) _Query_QueryResource(ctx context.Context, field grap
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().QueryResource(rctx, args["input"].(map[string]interface{}))
+		return ec.resolvers.Query().QueryResource(rctx, args["input"].(map[string]interface{}), args["poolName"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -459,9 +518,16 @@ func (ec *executionContext) _Query_QueryResources(ctx context.Context, field gra
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_QueryResources_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().QueryResources(rctx)
+		return ec.resolvers.Query().QueryResources(rctx, args["poolName"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)

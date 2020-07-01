@@ -3,6 +3,7 @@ package pools
 import (
 	"context"
 	"github.com/marosmars/resourceManager/ent"
+	resourcePool "github.com/marosmars/resourceManager/ent/resourcepool"
 )
 
 // NewSingletonPool creates a brand new pool allocating DB entities in the process
@@ -13,7 +14,7 @@ func NewSingletonPool(
 	propertyValues RawResourceProps,
 	poolName string) (Pool, error) {
 
-	pool, err := newPoolInner(ctx, client, resourceType, []RawResourceProps{propertyValues}, poolName)
+	pool, err := newPoolInner(ctx, client, resourceType, []RawResourceProps{propertyValues}, poolName, resourcePool.PoolTypeSingleton)
 
 	if err != nil {
 		return nil, err

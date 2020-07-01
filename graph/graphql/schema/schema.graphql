@@ -40,12 +40,11 @@ type Resource
 }
 
 type Query {
-    QueryResource(input: Map!): Resource!
-    QueryResources: [Resource]!
+    QueryResource(input: Map!, poolName: String!): Resource!
+    QueryResources(poolName: String!): [Resource]!
 }
 
 type Mutation {
-    ClaimResource: Resource!
-    FreeResource(input: Map!): String!
+    ClaimResource(poolName: String!): Resource!
+    FreeResource(input: Map!, poolName: String!): String!
 }
-
