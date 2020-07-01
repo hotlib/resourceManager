@@ -5,46 +5,47 @@ directive @goModel(model: String, models: [String!]) on OBJECT
     | INTERFACE
     | UNION
 
-input ResourceTag
-@goModel(model: "github.com/marosmars/resourceManager/pools.ResourceTag")
-{
-    ResourceTag: String!
-}
+#input ResourceTag
+#@goModel(model: "github.com/marosmars/resourceManager/pools.ResourceTag")
+#{
+#    ResourceTag: String!
+#}
+#
+#type ResoucePool
+#@goModel(model: "github.com/marosmars/resourceManager/ent.ResourcePool")
+#{
+#    ID: Int!
+#}
+#
+#type Property
+#@goModel(model: "github.com/marosmars/resourceManager/ent.Property")
+#{
+#   ID: Int!
+#   property_type: Int!
+#}
+#
+#type ResourceEdges
+#@goModel(model: "github.com/marosmars/resourceManager/ent.ResourceEdges")
+#{
+#    Pool: ResoucePool
+#    Properties: [Property]
+#}
 
-type ResoucePool
-@goModel(model: "github.com/marosmars/resourceManager/ent.ResourcePool")
-{
-    ID: Int!
-}
-
-type Property
-@goModel(model: "github.com/marosmars/resourceManager/ent.Property")
-{
-   ID: Int!
-   property_type: Int!
-}
-
-type ResourceEdges
-@goModel(model: "github.com/marosmars/resourceManager/ent.ResourceEdges")
-{
-    Pool: ResoucePool
-    Properties: [Property]
-}
+scalar Map
 
 type Resource
 @goModel(model: "github.com/marosmars/resourceManager/ent.Resource")
 {
     ID: Int!
-    Edges: ResourceEdges
 }
 
 type Query {
-    QueryResource(input: ResourceTag!): Resource!
+    QueryResource(input: Map!): Resource!
     QueryResources: [Resource]!
 }
 
 type Mutation {
-    ClaimResource(input: ResourceTag!): Resource!
-    FreeResource(input: ResourceTag!): String!
+    ClaimResource: Resource!
+    FreeResource(input: Map!): String!
 }
 

@@ -1,19 +1,11 @@
 mutation addCustomer {
-  ClaimResource(input: { ResourceTag: "customer123"}) {
+  ClaimResource() {
     ID
   }
 }
 
 query getCustomer{
-  QueryResource(input: {
-    ResourceTag: "customer123"
-  }){
+  QueryResources(){
     ID
   }
-}
-
-mutation freeCustomer{
-  FreeResource(input: {
-    ResourceTag:"customer123"
-  })
 }
