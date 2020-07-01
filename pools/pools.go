@@ -49,22 +49,7 @@ type SingletonPool struct {
 
 type RawResourceProps map[string]interface{}
 
-// NewSingletonPool creates a brand new pool allocating DB entities in the process
-func NewSingletonPool(
-	ctx context.Context,
-	client *ent.Client,
-	resourceType *ent.ResourceType,
-	propertyValues RawResourceProps,
-	poolName string) (Pool, error) {
 
-	pool, err := newPoolInner(ctx, client, resourceType, []RawResourceProps{propertyValues}, poolName)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &SingletonPool{SetPool{pool, ctx, client}}, nil
-}
 
 // NewSetPool creates a brand new pool allocating DB entities in the process
 func NewSetPool(
@@ -294,16 +279,9 @@ func (pool SetPool) ClaimResource() (*ent.Resource, error) {
 	return unclaimedRes, err
 }
 
-func (pool SingletonPool) ClaimResource() (*ent.Resource, error) {
-	return pool.queryUnclaimedResourceEager()
-}
 
 func (pool SetPool) FreeResource(raw RawResourceProps) error {
 	return pool.freeResourceInner(raw)
-}
-
-func (pool SingletonPool) FreeResource(raw RawResourceProps) error {
-	return nil
 }
 
 func (pool SetPool) freeResourceInner(raw RawResourceProps) error {
