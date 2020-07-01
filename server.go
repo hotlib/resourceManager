@@ -36,9 +36,10 @@ func getResourceType(ctx context.Context, client *ent.Client) *ent.ResourceType 
 
 func initDummyPool(ctx context.Context, client *ent.Client) pools.Pool {
 	resType := getResourceType(ctx, client)
-	pool, _ := pools.NewSingletonPool(ctx, client, resType, map[string]interface{}{
-		"vlan": 44,
-	}, "singleton")
+	pool, _ := pools.NewSetPool(ctx, client, resType, []pools.RawResourceProps{
+		pools.RawResourceProps{"vlan": 44},
+		pools.RawResourceProps{"vlan": 45},
+	}, "set")
 	return pool
 }
 
