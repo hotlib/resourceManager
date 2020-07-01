@@ -100,7 +100,10 @@ type Resource struct {
 
 // Fields of the Resource.
 func (Resource) Fields() []ent.Field {
-	return nil
+	return []ent.Field{
+		field.Bool("claimed").
+			Default(false),
+	}
 }
 
 // Edges of the Resource.
@@ -110,28 +113,5 @@ func (Resource) Edges() []ent.Edge {
 			Ref("claims").
 			Unique(),
 		edge.To("properties", Property.Type),
-		edge.To("tag", Tag.Type).
-			Unique(),
-	}
-}
-
-type Tag struct {
-	ent.Schema
-}
-
-// Fields of the ResourcePool.
-func (Tag) Fields() []ent.Field {
-	return []ent.Field{
-		field.String("tag").
-			NotEmpty().
-			Unique(),
-	}
-}
-
-func (Tag) Edges() []ent.Edge {
-	return []ent.Edge{
-		edge.From("resource", Resource.Type).
-			Ref("tag").
-			Unique(),
 	}
 }

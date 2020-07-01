@@ -12,7 +12,6 @@ import (
 	_ "github.com/marosmars/resourceManager/ent/runtime"
 	_ "github.com/mattn/go-sqlite3"
 )
-
 func getContext() context.Context {
 	ctx := context.Background()
 	ctx = authz.NewContext(ctx, &models.PermissionSettings{
@@ -70,35 +69,36 @@ func TestNewSingletonPool(t *testing.T) {
 	}
 }
 
-func TestClaimResoource(t *testing.T) {
+func TestClaimResoourceSetPool(t *testing.T) {
 	ctx := getContext()
 	client := openDb(ctx)
 	defer client.Close()
 	resType := getResourceType(ctx, client)
 
-	pool, _ := NewSingletonPool(ctx, client, resType, map[string]interface{}{
-		"vlan": 44,
-	}, "singleton")
+	pool, _ := NewSetPool(ctx, client, resType, []RawResourceProps{
+		RawResourceProps{"vlan": 44},
+		RawResourceProps{"vlan": 45},
+	}, "set")
 
-	claim1, err := pool.ClaimResource(ResourceTag{"customer1"})
-	if err != nil {
-		t.Error(err)
+	claims, err := pool.QueryResources()
+	if len(claims) != 0 {
+		t.Fatalf("Expected 0 claims, got: %d", len(claims))
 	}
+
+	claim1, err := pool.ClaimResource()
 	t.Log(claim1)
-	if claim1.QueryTag().OnlyX(ctx).Tag != "customer1" {
-		t.Fatalf("Wrong scope in %s", claim1)
+	claims, err = pool.QueryResources()
+	if len(claims) != 1 {
+		t.Fatalf("Expected 1 claims, got: %d", len(claims))
 	}
-
-	claim2, err := pool.ClaimResource(ResourceTag{"customer2"})
-	if err != nil {
-		t.Error(err)
-	}
+	claim2, err := pool.ClaimResource()
 	t.Log(claim2)
-	if claim2.QueryTag().OnlyX(ctx).Tag != "customer2" {
-		t.Fatalf("Wrong scope in %s", claim2)
+
+	if _, err := pool.ClaimResource(); err == nil {
+		t.Fatalf("Claiming resource from exhausted pool should return error")
 	}
 
-	entityPool := pool.(*SingletonPool).ResourcePool
+	entityPool := pool.(*SetPool).ResourcePool
 	if claim1.QueryPool().OnlyX(ctx).ID != entityPool.ID {
 		t.Fatalf("Wrong resource pool set expected: %s but was: %s",
 			entityPool, claim1.QueryPool().OnlyX(ctx))
@@ -113,24 +113,33 @@ func TestClaimResoource(t *testing.T) {
 	if len(claimProps1) != 1 {
 		t.Fatalf("Missing properties in resource claim: %s", claim1)
 	}
-	if claimProps1[0].IntVal != int(44) {
+	if claimProps1[0].IntVal > 45 || claimProps1[0].IntVal < 44 {
+		t.Fatalf("Wrong property in resource claim: %s", claim1)
+	}
+	if claimProps2[0].IntVal > 45 || claimProps2[0].IntVal < 44 {
 		t.Fatalf("Wrong property in resource claim: %s", claim1)
 	}
 
-	if claimProps2[0].IntVal != int(44) {
-		t.Fatalf("Wrong property in resource claim: %s", claim1)
+	claims, err = pool.QueryResources()
+	if len(claims) != 2 {
+		t.Fatalf("Expected 2 claims, got: %d", len(claims))
+	}
+	assertDb(ctx, client, t, 1, 1, 1, 2, 2)
+
+	if err := pool.Destroy(); err == nil {
+		t.Fatalf("Destroying pool with active claims should return error")
 	}
 
-	assertDb(ctx, client, t, 1, 1, 1, 3, 3, 3)
+	if err = pool.FreeResource(RawResourceProps{"vlan": claimProps1[0].IntVal}); err != nil {
+		t.Fatal(err)
+	}
+	pool.FreeResource(RawResourceProps{"vlan": claimProps2[0].IntVal})
+	assertDb(ctx, client, t, 1, 1, 1, 2, 2)
 
-	pool.FreeResource(ResourceTag{"customer1"})
-	pool.FreeResource(ResourceTag{"customer2"})
-
-	assertDb(ctx, client, t, 1, 1, 1, 1, 1, 1)
-
-	pool.Destroy()
-
-	assertDb(ctx, client, t, 1, 1, 0, 0, 0, 0)
+	if err = pool.Destroy(); err != nil {
+		t.Error(err)
+	}
+	assertDb(ctx, client, t, 1, 1, 0, 0, 0)
 }
 
 func assertDb(ctx context.Context, client *ent.Client, t *testing.T, count ...int) {
@@ -139,7 +148,6 @@ func assertDb(ctx context.Context, client *ent.Client, t *testing.T, count ...in
 	assertInstancesInDb(client.ResourcePool.Query().AllX(ctx), count[2], t)
 	assertInstancesInDb(client.Property.Query().AllX(ctx), count[3], t)
 	assertInstancesInDb(client.Resource.Query().AllX(ctx), count[4], t)
-	assertInstancesInDb(client.Tag.Query().AllX(ctx), count[5], t)
 }
 
 func assertInstancesInDb(instances interface{}, expected int, t *testing.T) {
