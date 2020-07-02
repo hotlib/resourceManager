@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	stdlog "log"
 	"net"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"github.com/marosmars/resourceManager/viewer"
 
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	_ "github.com/marosmars/resourceManager/ent/runtime"
@@ -27,6 +29,7 @@ import (
 
 type cliFlags struct {
 	HTTPAddress     *net.TCPAddr
+	GRPCAddress     *net.TCPAddr
 	MySQLConfig     mysql.Config
 	LogConfig       log.Config
 	TelemetryConfig telemetry.Config
@@ -42,6 +45,12 @@ func main() {
 	).
 		Default(":http").
 		TCPVar(&cf.HTTPAddress)
+	kingpin.Flag(
+		"grpc.listen-address",
+		"GRPC address to listen on",
+	).
+		Default(":https").
+		TCPVar(&cf.GRPCAddress)
 	kingpin.Flag(
 		"mysql.dsn",
 		"mysql connection string",
@@ -68,6 +77,7 @@ func main() {
 
 	app.Info("starting application",
 		zap.Stringer("http", cf.HTTPAddress),
+		zap.Stringer("grpc", cf.GRPCAddress),
 	)
 	err = app.run(ctx)
 	app.Info("terminating application", zap.Error(err))
@@ -79,6 +89,10 @@ type application struct {
 		*server.Server
 		addr string
 	}
+	grpc struct {
+		*grpc.Server
+		addr string
+	}
 }
 
 func (app *application) run(ctx context.Context) error {
@@ -87,6 +101,15 @@ func (app *application) run(ctx context.Context) error {
 	g.Go(func(context.Context) error {
 		err := app.http.ListenAndServe(app.http.addr)
 		app.Debug("http server terminated", zap.Error(err))
+		return err
+	})
+	g.Go(func(context.Context) error {
+		lis, err := net.Listen("tcp", app.grpc.addr)
+		if err != nil {
+			return fmt.Errorf("creating grpc listener: %w", err)
+		}
+		err = app.grpc.Serve(lis)
+		app.Debug("grpc server terminated", zap.Error(err))
 		return err
 	})
 	g.Go(func(ctx context.Context) error {
@@ -101,6 +124,12 @@ func (app *application) run(ctx context.Context) error {
 	)
 	defer app.Debug("end application termination")
 
+	g.Go(func(context.Context) error {
+		app.Debug("start grpc server termination")
+		app.grpc.GracefulStop()
+		app.Debug("end grpc server termination")
+		return nil
+	})
 	g.Go(func(context.Context) error {
 		app.Debug("start http server termination")
 		err := app.http.Shutdown(context.Background())

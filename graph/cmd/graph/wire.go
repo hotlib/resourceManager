@@ -10,15 +10,17 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/marosmars/resourceManager/graph/graphgrpc"
+	"github.com/marosmars/resourceManager/ent"
 	"github.com/marosmars/resourceManager/graph/graphhttp"
 	"github.com/marosmars/resourceManager/log"
 	"github.com/marosmars/resourceManager/mysql"
 	"github.com/marosmars/resourceManager/server"
 	"github.com/marosmars/resourceManager/viewer"
-	"github.com/marosmars/resourceManager/ent"
-	"gocloud.dev/server/health"
 
 	"github.com/google/wire"
+	"gocloud.dev/server/health"
+	"google.golang.org/grpc"
 )
 
 func newApplication(ctx context.Context, flags *cliFlags) (*application, func(), error) {
@@ -34,17 +36,22 @@ func newApplication(ctx context.Context, flags *cliFlags) (*application, func(),
 		newTenancy,
 		newHealthChecks,
 		newMySQLTenancy,
+		mysql.Provider,
 		graphhttp.NewServer,
 		wire.Struct(new(graphhttp.Config), "*"),
+		graphgrpc.NewServer,
+		wire.Struct(new(graphgrpc.Config), "*"),
 	)
 	return nil, nil, nil
 }
 
-func newApp(logger log.Logger, httpServer *server.Server, flags *cliFlags) *application {
+func newApp(logger log.Logger, httpServer *server.Server, grpcServer *grpc.Server, flags *cliFlags) *application {
 	var app application
 	app.Logger = logger.Background()
 	app.http.Server = httpServer
 	app.http.addr = flags.HTTPAddress.String()
+	app.grpc.Server = grpcServer
+	app.grpc.addr = flags.GRPCAddress.String()
 	return &app
 }
 

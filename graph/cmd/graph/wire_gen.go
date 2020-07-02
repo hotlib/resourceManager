@@ -9,12 +9,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/marosmars/resourceManager/ent"
+	"github.com/marosmars/resourceManager/graph/graphgrpc"
 	"github.com/marosmars/resourceManager/graph/graphhttp"
 	"github.com/marosmars/resourceManager/log"
 	"github.com/marosmars/resourceManager/mysql"
 	"github.com/marosmars/resourceManager/server"
 	"github.com/marosmars/resourceManager/viewer"
 	"gocloud.dev/server/health"
+	"google.golang.org/grpc"
 )
 
 import (
@@ -54,8 +56,24 @@ func newApplication(ctx context.Context, flags *cliFlags) (*application, func(),
 		cleanup()
 		return nil, nil, err
 	}
-	mainApplication := newApp(logger, server, flags)
+	config2 := &flags.MySQLConfig
+	db, cleanup3 := mysql.Provider(config2)
+	graphgrpcConfig := graphgrpc.Config{
+		DB:      db,
+		Logger:  logger,
+		Tenancy: tenancy,
+	}
+	grpcServer, cleanup4, err := graphgrpc.NewServer(graphgrpcConfig)
+	if err != nil {
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	mainApplication := newApp(logger, server, grpcServer, flags)
 	return mainApplication, func() {
+		cleanup4()
+		cleanup3()
 		cleanup2()
 		cleanup()
 	}, nil
@@ -63,11 +81,13 @@ func newApplication(ctx context.Context, flags *cliFlags) (*application, func(),
 
 // wire.go:
 
-func newApp(logger log.Logger, httpServer *server.Server, flags *cliFlags) *application {
+func newApp(logger log.Logger, httpServer *server.Server, grpcServer *grpc.Server, flags *cliFlags) *application {
 	var app application
 	app.Logger = logger.Background()
 	app.http.Server = httpServer
 	app.http.addr = flags.HTTPAddress.String()
+	app.grpc.Server = grpcServer
+	app.grpc.addr = flags.GRPCAddress.String()
 	return &app
 }
 

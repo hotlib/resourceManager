@@ -13,8 +13,6 @@ go generate ./graph/graphql
 echo ""
 echo "------> Building"
 
-go build
-
 echo ""
 echo "------> Testing"
 

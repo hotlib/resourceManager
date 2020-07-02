@@ -12,4 +12,4 @@ mysql -u root -h localhost -P 3306 -proot < init
 EOF
 
 ./entCmd --tenant FRINX --db-dsn "root:root@tcp(localhost:3306)/?charset=utf8&parseTime=true&interpolateParams=true" --user devel
-./resourceManager --mysql.dsn="root:root@tcp(localhost:3306)/?charset=utf8&parseTime=true&interpolateParams=true"  --tenancy.db_max_conn=10 --web.listen-address=0.0.0.0:8884 
+./resourceManager --mysql.dsn="root:root@tcp(localhost:3306)/?charset=utf8&parseTime=true&interpolateParams=true"  --tenancy.db_max_conn=10 --web.listen-address=0.0.0.0:8884  --grpc.listen-address=0.0.0.0:8885 

@@ -37,7 +37,7 @@ rm -rf inv
 echo "------> Successfully extracted inventory ent/"
 
 # Copy all the dependencies of entities
-for folder in authz actions viewer ent-contrib log mysql telemetry ctxgroup ctxutil server; do
+for folder in authz actions viewer ent-contrib log mysql telemetry ctxgroup ctxutil server grpc-middleware; do
     echo ""
     echo "------> Extracting inventory $folder into $folder"
     mkdir -p ../"${folder}"
