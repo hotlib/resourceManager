@@ -5,31 +5,14 @@ directive @goModel(model: String, models: [String!]) on OBJECT
     | INTERFACE
     | UNION
 
-#input ResourceTag
-#@goModel(model: "github.com/marosmars/resourceManager/pools.ResourceTag")
-#{
-#    ResourceTag: String!
-#}
-#
-#type ResoucePool
-#@goModel(model: "github.com/marosmars/resourceManager/ent.ResourcePool")
-#{
-#    ID: Int!
-#}
-#
-#type Property
-#@goModel(model: "github.com/marosmars/resourceManager/ent.Property")
-#{
-#   ID: Int!
-#   property_type: Int!
-#}
-#
-#type ResourceEdges
-#@goModel(model: "github.com/marosmars/resourceManager/ent.ResourceEdges")
-#{
-#    Pool: ResoucePool
-#    Properties: [Property]
-#}
+enum PoolType
+@goModel(
+    model: "github.com/marosmars/resourceManager/ent/resourcepool.PoolType"
+)
+{
+    set
+    singleton
+}
 
 scalar Map
 
@@ -47,4 +30,5 @@ type Query {
 type Mutation {
     ClaimResource(poolName: String!): Resource!
     FreeResource(input: Map!, poolName: String!): String!
+    CreatePool(poolType: PoolType, resourceName: String!, resourceProperties: Map!, poolName: String!, poolValues: [Map], allocationScript: String!): String!
 }

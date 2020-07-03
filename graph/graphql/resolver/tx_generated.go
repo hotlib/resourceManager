@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/marosmars/resourceManager/ent"
+	"github.com/marosmars/resourceManager/ent/resourcepool"
 	"github.com/marosmars/resourceManager/graph/graphql/generated"
 )
 
@@ -58,6 +59,17 @@ func (tr txResolver) FreeResource(ctx context.Context, input map[string]interfac
 	var result, zero string
 	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
 		result, err = mr.FreeResource(ctx, input, poolName)
+		return
+	}); err != nil {
+		return zero, err
+	}
+	return result, nil
+}
+
+func (tr txResolver) CreatePool(ctx context.Context, poolType *resourcepool.PoolType, resourceName string, resourceProperties map[string]interface{}, poolName string, poolValues []map[string]interface{}, allocationScript string) (string, error) {
+	var result, zero string
+	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
+		result, err = mr.CreatePool(ctx, poolType, resourceName, resourceProperties, poolName, poolValues, allocationScript)
 		return
 	}); err != nil {
 		return zero, err

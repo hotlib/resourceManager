@@ -5,8 +5,12 @@ package resolver
 
 import (
 	"context"
+	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/marosmars/resourceManager/ent"
+	"github.com/marosmars/resourceManager/ent/resourcepool"
 	"github.com/marosmars/resourceManager/graph/graphql/generated"
 	p "github.com/marosmars/resourceManager/pools"
 )
@@ -31,6 +35,52 @@ func (r *mutationResolver) FreeResource(ctx context.Context, input map[string]in
 	}
 
 	return err.Error(), err
+}
+
+func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepool.PoolType, resourceName string, resourceProperties map[string]interface{}, poolName string, poolValues []map[string]interface{}, allocationScript string) (string, error) {
+	var client = r.ClientFrom(ctx)
+	var resourceTypeName = fmt.Sprintf("%v", resourceProperties["type"])
+	prop := client.PropertyType.Create().
+		SetName(resourceName). //TODO property and resource name the same?
+		SetType(resourceTypeName).
+		SetMandatory(true)
+
+	//we support int, but we always get int64
+	if reflect.TypeOf(resourceProperties["init"]).String() == "int64" {
+		resourceProperties["init"] = int(resourceProperties["init"].(int64))
+	}
+
+	in := []reflect.Value{reflect.ValueOf(resourceProperties["init"])}
+	reflect.ValueOf(prop).MethodByName("Set" + strings.Title(resourceTypeName) + "Val").Call(in)
+
+	var propType, _ = prop.Save(ctx)
+
+	resType, _ := client.ResourceType.Create().
+		SetName(resourceName).
+		AddPropertyTypes(propType).
+		Save(ctx)
+	var rawProps []p.RawResourceProps
+
+	for _, v := range poolValues {
+		rawProps = append(rawProps, v)
+	}
+
+	var pool p.Pool
+
+	//TODO handle errors
+	if resourcepool.PoolTypeSet == *poolType {
+		pool, _ = p.NewSetPool(ctx, client, resType, rawProps, poolName) //TODO call newPoolInner
+	} else if resourcepool.PoolTypeSingleton == *poolType {
+		if len(rawProps) > 0 {
+			pool, _ = p.NewSingletonPool(ctx, client, resType, rawProps[0], poolName) //TODO call newPoolInner
+		} else {
+			//TODO logging missing rawProps parameter
+		}
+	}
+
+	fmt.Println(pool)
+
+	return "ok", nil
 }
 
 func (r *queryResolver) QueryResource(ctx context.Context, input map[string]interface{}, poolName string) (*ent.Resource, error) {
