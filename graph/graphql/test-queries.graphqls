@@ -1,11 +1,25 @@
 mutation ClaimResource {
-  ClaimResource(poolName:"testPool") {
+  ClaimResource(poolName:"vlan_test") {
     ID
   }
 }
 
 query QueryResources {
-  QueryResources(poolName:"testPool"){
+  QueryResources(poolName:"vlan_test"){
     ID
   }
+}
+
+mutation createNewPool {
+  CreatePool(
+    poolType: set,
+    resourceName: "vlans",
+    resourceProperties: {
+      type: "int",
+      init: 1
+    },
+    poolName: "vlan_test",
+    poolValues: [{vlan: 13}, {vlan: 14}],
+    allocationScript: "empty"
+  )
 }
