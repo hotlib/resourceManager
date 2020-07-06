@@ -10,6 +10,7 @@ import (
 	"github.com/facebookincubator/ent/schema/field"
 	// "github.com/marosmars/resourceManager/authz"
 	// "github.com/marosmars/resourceManager/ent/privacy"
+	// "github.com/marosmars/resourceManager/ent/privacy"
 	// "github.com/marosmars/resourceManager/viewer"
 )
 
@@ -35,15 +36,16 @@ func (ResourceType) Edges() []ent.Edge {
 	}
 }
 
-// Policy returns ResourceType policy.
-// func (ResourceType) Policy() ent.Policy {
-// 	return nil
-// }
-
-// // Hooks of the ResourceType.
-// func (ResourceType) Hooks() []ent.Hook {
-// 	return nil
-// }
+// Policy returns resource type policy.
+func (ResourceType) Policy() ent.Policy {
+	// TODO setup RBAC policies for entities (RBAC based on user's role) such as:
+	// return authz.NewPolicy(
+	// 	authz.WithMutationRules(
+	// 		authz.ResourceTypeWritePolicyRule(),
+	// 	),
+	// )
+	return nil
+}
 
 type Label struct {
 	ent.Schema

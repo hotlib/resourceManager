@@ -14,13 +14,16 @@
 
 ## Glossary
 
-* Telemetry - tracing data streaming
-* Policy - RBAC control over entity CRUD operations. Defined as part of ent.go schema
+* Telemetry - tracing data streaming. Not used in RM
+* Privacy/Policy - RBAC control over entity CRUD operations. Defined as part of ent.go schema
 * Hook - Custom code invoked when interacting ent.go entity. Not used in RM
-* Features -
-* Directive - Custom extension to graphql schema for graphqlgen framework. Needs to be defined in the schema and implemented as go code. Example: IntRange restriction directive.
+* Features - Special tags coming as HTTP headers that can grant additional permissions to users ? Not used in RM
+* Directive - Custom extension to graphql schema for graphqlgen framework. Needs to be defined in the schema and implemented as go code. Example: IntRange restriction directive. Not used yet
 * Actions -
 * Triggers -
+* Events - 
+* Jobs - 
+* Exporter - batch export/import of data (CSV). Not used in RM
 
 ## Features
 List of important features of resource manager
@@ -53,11 +56,14 @@ In DB, each tenant has their own database.
 GraphQL server switches to appropriate tenant context using TenantHandler baked into the HTTP API.
 
 ### RBAC
-???
-Policy
+Privacy rules attached to ent.go schema definitions define the permissions. They can be anything from alwaysAllow, alwaysDeny, but usually they are tied to user role e.g. only a superuser can CUD and entity.
+
+There are also additional optional features coming in as HTTP headers that can alter the permissions granted from user's role. 
 
 ### Logging
-???
+zap logging framework is used. Main parameters allow control over logging level and format.
+
+??? connection with events ? are the logs streamed ?
 
 ### Telementry
 Support for tracing (distributed tracing). Streams data into a collector such as Jaeger.
