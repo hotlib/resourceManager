@@ -37,7 +37,7 @@ func (r *mutationResolver) FreeResource(ctx context.Context, input map[string]in
 	return err.Error(), err
 }
 
-func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepool.PoolType, resourceName string, resourceProperties map[string]interface{}, poolName string, poolValues []map[string]interface{}, allocationScript string) (string, error) {
+func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepool.PoolType, resourceName string, resourceProperties map[string]interface{}, poolName string, poolValues []map[string]interface{}, allocationScript string) (*ent.ResourcePool, error) {
 	var client = r.ClientFrom(ctx)
 	var resourceTypeName = fmt.Sprintf("%v", resourceProperties["type"])
 	prop := client.PropertyType.Create().
@@ -45,9 +45,12 @@ func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepoo
 		SetType(resourceTypeName).
 		SetMandatory(true)
 
-	//we support int, but we always get int64
+	//TODO we support int, but we always get int64 instead of int
 	if reflect.TypeOf(resourceProperties["init"]).String() == "int64" {
 		resourceProperties["init"] = int(resourceProperties["init"].(int64))
+		for i, v := range poolValues {
+			poolValues[i][resourceName] = int(v[resourceName].(int64))
+		}
 	}
 
 	in := []reflect.Value{reflect.ValueOf(resourceProperties["init"])}
@@ -65,22 +68,20 @@ func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepoo
 		rawProps = append(rawProps, v)
 	}
 
-	var pool p.Pool
-
-	//TODO handle errors
 	if resourcepool.PoolTypeSet == *poolType {
-		pool, _ = p.NewSetPool(ctx, client, resType, rawProps, poolName) //TODO call newPoolInner
+		_, rp, err := p.NewSetPoolFull(ctx, client, resType, rawProps, poolName)
+		return rp, err
 	} else if resourcepool.PoolTypeSingleton == *poolType {
 		if len(rawProps) > 0 {
-			pool, _ = p.NewSingletonPool(ctx, client, resType, rawProps[0], poolName) //TODO call newPoolInner
+			_, rp, err := p.NewSingletonPoolFull(ctx, client, resType, rawProps[0], poolName)
+			return rp, err
 		} else {
 			//TODO logging missing rawProps parameter
 		}
 	}
 
-	fmt.Println(pool)
-
-	return "ok", nil
+	//TODO something went wrong, log or smth
+	return nil, nil
 }
 
 func (r *queryResolver) QueryResource(ctx context.Context, input map[string]interface{}, poolName string) (*ent.Resource, error) {

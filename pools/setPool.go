@@ -15,16 +15,27 @@ func NewSetPool(
 	resourceType *ent.ResourceType,
 	propertyValues []RawResourceProps,
 	poolName string) (Pool, error) {
+	pool, _, err := NewSetPoolFull(ctx, client, resourceType, propertyValues, poolName)
+	return pool, err
+}
+
+//creates a brand new pool + returns the pools underlying meta information
+func NewSetPoolFull(
+	ctx context.Context,
+	client *ent.Client,
+	resourceType *ent.ResourceType,
+	propertyValues []RawResourceProps,
+	poolName string) (Pool, *ent.ResourcePool, error) {
 
 	// TODO check that propertyValues are unique
 
 	pool, err := newPoolInner(ctx, client, resourceType, propertyValues, poolName, resourcePool.PoolTypeSet)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &SetPool{pool, ctx, client}, nil
+	return &SetPool{pool, ctx, client}, pool, nil
 }
 
 // Destroy removes the pool from DB if there are no more claims

@@ -13,14 +13,25 @@ func NewSingletonPool(
 	resourceType *ent.ResourceType,
 	propertyValues RawResourceProps,
 	poolName string) (Pool, error) {
+	pool, _, err := NewSingletonPoolFull(ctx, client, resourceType, propertyValues, poolName)
+	return pool, err
+}
+
+//creates a brand new pool + returns the pools underlying meta information
+func NewSingletonPoolFull(
+	ctx context.Context,
+	client *ent.Client,
+	resourceType *ent.ResourceType,
+	propertyValues RawResourceProps,
+	poolName string) (Pool, *ent.ResourcePool, error) {
 
 	pool, err := newPoolInner(ctx, client, resourceType, []RawResourceProps{propertyValues}, poolName, resourcePool.PoolTypeSingleton)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &SingletonPool{SetPool{pool, ctx, client}}, nil
+	return &SingletonPool{SetPool{pool, ctx, client}}, pool, nil
 }
 
 func (pool SingletonPool) ClaimResource() (*ent.Resource, error) {
