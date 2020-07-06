@@ -13,13 +13,25 @@ query QueryResources {
 mutation createNewPool {
   CreatePool(
     poolType: set,
+    resourceTypeId: 141733920769,
+    poolName: "vlan_test5",
+    poolValues: [{vlans: 13}, {vlans: 14}],
+    allocationScript: "empty"
+  ){
+    ID
+  }
+}
+
+
+mutation createNewResourceType {
+  CreateResourceType(
     resourceName: "vlans",
     resourceProperties: {
       type: "int",
       init: 1
-    },
-    poolName: "vlan_test",
-    poolValues: [{vlan: 13}, {vlan: 14}],
-    allocationScript: "empty"
-  )
+    }
+  ) {
+    ID
+    Name
+  }
 }

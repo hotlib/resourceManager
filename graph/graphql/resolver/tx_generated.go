@@ -66,10 +66,24 @@ func (tr txResolver) FreeResource(ctx context.Context, input map[string]interfac
 	return result, nil
 }
 
-func (tr txResolver) CreatePool(ctx context.Context, poolType *resourcepool.PoolType, resourceName string, resourceProperties map[string]interface{}, poolName string, poolValues []map[string]interface{}, allocationScript string) (*ent.ResourcePool, error) {
+func (tr txResolver) CreateResourceType(ctx context.Context, resourceName string, resourceProperties map[string]interface{}) (*ent.ResourceType, error) {
+	var result, zero *ent.ResourceType
+	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
+		result, err = mr.CreateResourceType(ctx, resourceName, resourceProperties)
+		return
+	}); err != nil {
+		return zero, err
+	}
+	if result != nil {
+		result = result.Unwrap()
+	}
+	return result, nil
+}
+
+func (tr txResolver) CreatePool(ctx context.Context, poolType *resourcepool.PoolType, resourceTypeID int, poolName string, poolValues []map[string]interface{}, allocationScript string) (*ent.ResourcePool, error) {
 	var result, zero *ent.ResourcePool
 	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
-		result, err = mr.CreatePool(ctx, poolType, resourceName, resourceProperties, poolName, poolValues, allocationScript)
+		result, err = mr.CreatePool(ctx, poolType, resourceTypeID, poolName, poolValues, allocationScript)
 		return
 	}); err != nil {
 		return zero, err

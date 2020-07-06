@@ -22,11 +22,35 @@ type Resource
     ID: Int!
 }
 
+type PropertyType
+@goModel(model: "github.com/marosmars/resourceManager/ent.PropertyType"){
+    ID: Int!
+    Name: String!
+    Type: String!,
+    IntVal: Int!,
+    StringVal: String!,
+    FloatVal: Float!,
+    Mandatory: Boolean!
+}
+
 type ResourcePool
 @goModel(model: "github.com/marosmars/resourceManager/ent.ResourcePool"){
     ID: Int!
     Name: String!
     PoolType: PoolType!
+}
+
+type ResourceTypeEdges
+@goModel(model: "github.com/marosmars/resourceManager/ent.ResourceTypeEdges"){
+    PropertyTypes: [PropertyType]
+    Pools: [ResourcePool]
+}
+
+type ResourceType
+@goModel(model: "github.com/marosmars/resourceManager/ent.ResourceType"){
+    ID: Int!
+    Name: String!
+    Edges: ResourceTypeEdges
 }
 
 type Query {
@@ -37,5 +61,6 @@ type Query {
 type Mutation {
     ClaimResource(poolName: String!): Resource!
     FreeResource(input: Map!, poolName: String!): String!
-    CreatePool(poolType: PoolType, resourceName: String!, resourceProperties: Map!, poolName: String!, poolValues: [Map], allocationScript: String!): ResourcePool!
+    CreateResourceType(resourceName: String!, resourceProperties: Map!): ResourceType!
+    CreatePool(poolType: PoolType, resourceTypeId: Int!, poolName: String!, poolValues: [Map], allocationScript: String!): ResourcePool!
 }

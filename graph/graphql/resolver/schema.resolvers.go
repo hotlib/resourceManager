@@ -37,7 +37,7 @@ func (r *mutationResolver) FreeResource(ctx context.Context, input map[string]in
 	return err.Error(), err
 }
 
-func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepool.PoolType, resourceName string, resourceProperties map[string]interface{}, poolName string, poolValues []map[string]interface{}, allocationScript string) (*ent.ResourcePool, error) {
+func (r *mutationResolver) CreateResourceType(ctx context.Context, resourceName string, resourceProperties map[string]interface{}) (*ent.ResourceType, error) {
 	var client = r.ClientFrom(ctx)
 	var resourceTypeName = fmt.Sprintf("%v", resourceProperties["type"])
 	prop := client.PropertyType.Create().
@@ -48,9 +48,6 @@ func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepoo
 	//TODO we support int, but we always get int64 instead of int
 	if reflect.TypeOf(resourceProperties["init"]).String() == "int64" {
 		resourceProperties["init"] = int(resourceProperties["init"].(int64))
-		for i, v := range poolValues {
-			poolValues[i][resourceName] = int(v[resourceName].(int64))
-		}
 	}
 
 	in := []reflect.Value{reflect.ValueOf(resourceProperties["init"])}
@@ -62,6 +59,25 @@ func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepoo
 		SetName(resourceName).
 		AddPropertyTypes(propType).
 		Save(ctx)
+
+	return resType, nil
+}
+
+func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepool.PoolType, resourceTypeID int, poolName string, poolValues []map[string]interface{}, allocationScript string) (*ent.ResourcePool, error) {
+	var client = r.ClientFrom(ctx)
+
+	resType, _ := client.ResourceType.Get(ctx, resourceTypeID)
+
+	//TODO we support int, but we always get int64 instead of int
+	for i, v := range poolValues {
+		for k, val := range v {
+			fmt.Printf("key[%s] value[%s]\n", k, v)
+			if reflect.TypeOf(val).String() == "int64" {
+				poolValues[i][k] = int(val.(int64))
+			}
+		}
+	}
+
 	var rawProps []p.RawResourceProps
 
 	for _, v := range poolValues {
