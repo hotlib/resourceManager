@@ -85,11 +85,11 @@ func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepoo
 	}
 
 	if resourcepool.PoolTypeSet == *poolType {
-		_, rp, err := p.NewSetPoolFull(ctx, client, resType, rawProps, poolName)
+		_, rp, err := p.NewSetPoolWithMeta(ctx, client, resType, rawProps, poolName)
 		return rp, err
 	} else if resourcepool.PoolTypeSingleton == *poolType {
 		if len(rawProps) > 0 {
-			_, rp, err := p.NewSingletonPoolFull(ctx, client, resType, rawProps[0], poolName)
+			_, rp, err := p.NewSingletonPoolWithMeta(ctx, client, resType, rawProps[0], poolName)
 			return rp, err
 		} else {
 			//TODO logging missing rawProps parameter

@@ -13,12 +13,12 @@ func NewSingletonPool(
 	resourceType *ent.ResourceType,
 	propertyValues RawResourceProps,
 	poolName string) (Pool, error) {
-	pool, _, err := NewSingletonPoolFull(ctx, client, resourceType, propertyValues, poolName)
+	pool, _, err := NewSingletonPoolWithMeta(ctx, client, resourceType, propertyValues, poolName)
 	return pool, err
 }
 
 //creates a brand new pool + returns the pools underlying meta information
-func NewSingletonPoolFull(
+func NewSingletonPoolWithMeta(
 	ctx context.Context,
 	client *ent.Client,
 	resourceType *ent.ResourceType,

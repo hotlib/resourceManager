@@ -44,6 +44,11 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	Label struct {
+		ID   func(childComplexity int) int
+		Labl func(childComplexity int) int
+	}
+
 	Mutation struct {
 		ClaimResource      func(childComplexity int, poolName string) int
 		CreatePool         func(childComplexity int, poolType *resourcepool.PoolType, resourceTypeID int, poolName string, poolValues []map[string]interface{}, allocationScript string) int
@@ -71,9 +76,15 @@ type ComplexityRoot struct {
 	}
 
 	ResourcePool struct {
+		Edges    func(childComplexity int) int
 		ID       func(childComplexity int) int
 		Name     func(childComplexity int) int
 		PoolType func(childComplexity int) int
+	}
+
+	ResourcePoolEdges struct {
+		Labels       func(childComplexity int) int
+		ResourceType func(childComplexity int) int
 	}
 
 	ResourceType struct {
@@ -113,6 +124,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	ec := executionContext{nil, e}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "Label.ID":
+		if e.complexity.Label.ID == nil {
+			break
+		}
+
+		return e.complexity.Label.ID(childComplexity), true
+
+	case "Label.Labl":
+		if e.complexity.Label.Labl == nil {
+			break
+		}
+
+		return e.complexity.Label.Labl(childComplexity), true
 
 	case "Mutation.ClaimResource":
 		if e.complexity.Mutation.ClaimResource == nil {
@@ -242,6 +267,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Resource.ID(childComplexity), true
 
+	case "ResourcePool.Edges":
+		if e.complexity.ResourcePool.Edges == nil {
+			break
+		}
+
+		return e.complexity.ResourcePool.Edges(childComplexity), true
+
 	case "ResourcePool.ID":
 		if e.complexity.ResourcePool.ID == nil {
 			break
@@ -262,6 +294,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.ResourcePool.PoolType(childComplexity), true
+
+	case "ResourcePoolEdges.Labels":
+		if e.complexity.ResourcePoolEdges.Labels == nil {
+			break
+		}
+
+		return e.complexity.ResourcePoolEdges.Labels(childComplexity), true
+
+	case "ResourcePoolEdges.ResourceType":
+		if e.complexity.ResourcePoolEdges.ResourceType == nil {
+			break
+		}
+
+		return e.complexity.ResourcePoolEdges.ResourceType(childComplexity), true
 
 	case "ResourceType.Edges":
 		if e.complexity.ResourceType.Edges == nil {
@@ -402,6 +448,19 @@ type ResourcePool
     ID: Int!
     Name: String!
     PoolType: PoolType!
+    Edges: ResourcePoolEdges
+}
+
+type Label
+@goModel(model: "github.com/marosmars/resourceManager/ent.Label"){
+    ID: Int!
+    Labl: String!
+}
+
+type ResourcePoolEdges
+@goModel(model: "github.com/marosmars/resourceManager/ent.ResourcePoolEdges"){
+    ResourceType: ResourceType!
+    Labels: Label
 }
 
 type ResourceTypeEdges
@@ -416,8 +475,6 @@ type ResourceType
     Name: String!
     Edges: ResourceTypeEdges
 }
-
-
 
 type Query {
     QueryResource(input: Map!, poolName: String!): Resource!
@@ -626,6 +683,74 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _Label_ID(ctx context.Context, field graphql.CollectedField, obj *ent.Label) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Label",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Label_Labl(ctx context.Context, field graphql.CollectedField, obj *ent.Label) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Label",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Labl, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
 
 func (ec *executionContext) _Mutation_ClaimResource(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
@@ -1314,6 +1439,102 @@ func (ec *executionContext) _ResourcePool_PoolType(ctx context.Context, field gr
 	res := resTmp.(resourcepool.PoolType)
 	fc.Result = res
 	return ec.marshalNPoolType2githubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚋresourcepoolᚐPoolType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ResourcePool_Edges(ctx context.Context, field graphql.CollectedField, obj *ent.ResourcePool) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "ResourcePool",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Edges, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(ent.ResourcePoolEdges)
+	fc.Result = res
+	return ec.marshalOResourcePoolEdges2githubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResourcePoolEdges(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ResourcePoolEdges_ResourceType(ctx context.Context, field graphql.CollectedField, obj *ent.ResourcePoolEdges) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "ResourcePoolEdges",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ResourceType, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*ent.ResourceType)
+	fc.Result = res
+	return ec.marshalNResourceType2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResourceType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _ResourcePoolEdges_Labels(ctx context.Context, field graphql.CollectedField, obj *ent.ResourcePoolEdges) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "ResourcePoolEdges",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Labels, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*ent.Label)
+	fc.Result = res
+	return ec.marshalOLabel2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐLabel(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _ResourceType_ID(ctx context.Context, field graphql.CollectedField, obj *ent.ResourceType) (ret graphql.Marshaler) {
@@ -2540,6 +2761,38 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 
 // region    **************************** object.gotpl ****************************
 
+var labelImplementors = []string{"Label"}
+
+func (ec *executionContext) _Label(ctx context.Context, sel ast.SelectionSet, obj *ent.Label) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, labelImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Label")
+		case "ID":
+			out.Values[i] = ec._Label_ID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "Labl":
+			out.Values[i] = ec._Label_Labl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -2754,6 +3007,37 @@ func (ec *executionContext) _ResourcePool(ctx context.Context, sel ast.Selection
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "Edges":
+			out.Values[i] = ec._ResourcePool_Edges(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var resourcePoolEdgesImplementors = []string{"ResourcePoolEdges"}
+
+func (ec *executionContext) _ResourcePoolEdges(ctx context.Context, sel ast.SelectionSet, obj *ent.ResourcePoolEdges) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, resourcePoolEdgesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ResourcePoolEdges")
+		case "ResourceType":
+			out.Values[i] = ec._ResourcePoolEdges_ResourceType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "Labels":
+			out.Values[i] = ec._ResourcePoolEdges_Labels(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3492,6 +3776,17 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return ec.marshalOBoolean2bool(ctx, sel, *v)
 }
 
+func (ec *executionContext) marshalOLabel2githubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐLabel(ctx context.Context, sel ast.SelectionSet, v ent.Label) graphql.Marshaler {
+	return ec._Label(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOLabel2ᚖgithubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐLabel(ctx context.Context, sel ast.SelectionSet, v *ent.Label) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Label(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalOMap2map(ctx context.Context, v interface{}) (map[string]interface{}, error) {
 	if v == nil {
 		return nil, nil
@@ -3673,6 +3968,10 @@ func (ec *executionContext) marshalOResourcePool2ᚖgithubᚗcomᚋmarosmarsᚋr
 		return graphql.Null
 	}
 	return ec._ResourcePool(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOResourcePoolEdges2githubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResourcePoolEdges(ctx context.Context, sel ast.SelectionSet, v ent.ResourcePoolEdges) graphql.Marshaler {
+	return ec._ResourcePoolEdges(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalOResourceTypeEdges2githubᚗcomᚋmarosmarsᚋresourceManagerᚋentᚐResourceTypeEdges(ctx context.Context, sel ast.SelectionSet, v ent.ResourceTypeEdges) graphql.Marshaler {

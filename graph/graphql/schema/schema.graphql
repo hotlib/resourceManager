@@ -38,6 +38,19 @@ type ResourcePool
     ID: Int!
     Name: String!
     PoolType: PoolType!
+    Edges: ResourcePoolEdges
+}
+
+type Label
+@goModel(model: "github.com/marosmars/resourceManager/ent.Label"){
+    ID: Int!
+    Labl: String!
+}
+
+type ResourcePoolEdges
+@goModel(model: "github.com/marosmars/resourceManager/ent.ResourcePoolEdges"){
+    ResourceType: ResourceType!
+    Labels: Label
 }
 
 type ResourceTypeEdges
