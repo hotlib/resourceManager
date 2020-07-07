@@ -100,6 +100,12 @@ func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepoo
 	return nil, nil
 }
 
+func (r *mutationResolver) DeleteResourcePool(ctx context.Context, resourcePoolID int) (string, error) {
+	client := r.ClientFrom(ctx)
+	err := client.ResourcePool.DeleteOneID(resourcePoolID).Exec(ctx)
+	return "ok", err
+}
+
 func (r *queryResolver) QueryResource(ctx context.Context, input map[string]interface{}, poolName string) (*ent.Resource, error) {
 	pool, err := p.ExistingPool(ctx, r.ClientFrom(ctx), poolName)
 	if err != nil {
@@ -114,6 +120,16 @@ func (r *queryResolver) QueryResources(ctx context.Context, poolName string) ([]
 		return nil, err
 	}
 	return pool.QueryResources()
+}
+
+func (r *queryResolver) QueryResourceTypes(ctx context.Context) ([]*ent.ResourceType, error) {
+	client := r.ClientFrom(ctx)
+	return client.ResourceType.Query().All(ctx)
+}
+
+func (r *queryResolver) QueryResourcePools(ctx context.Context) ([]*ent.ResourcePool, error) {
+	client := r.ClientFrom(ctx)
+	return client.ResourcePool.Query().All(ctx)
 }
 
 // Mutation returns generated.MutationResolver implementation.

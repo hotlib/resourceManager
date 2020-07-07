@@ -93,3 +93,14 @@ func (tr txResolver) CreatePool(ctx context.Context, poolType *resourcepool.Pool
 	}
 	return result, nil
 }
+
+func (tr txResolver) DeleteResourcePool(ctx context.Context, resourcePoolID int) (string, error) {
+	var result, zero string
+	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
+		result, err = mr.DeleteResourcePool(ctx, resourcePoolID)
+		return
+	}); err != nil {
+		return zero, err
+	}
+	return result, nil
+}

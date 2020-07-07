@@ -69,6 +69,8 @@ type ResourceType
 type Query {
     QueryResource(input: Map!, poolName: String!): Resource!
     QueryResources(poolName: String!): [Resource]!
+    QueryResourceTypes: [ResourceType]!
+    QueryResourcePools: [ResourcePool]!
 }
 
 type Mutation {
@@ -76,4 +78,5 @@ type Mutation {
     FreeResource(input: Map!, poolName: String!): String!
     CreateResourceType(resourceName: String!, resourceProperties: Map!): ResourceType!
     CreatePool(poolType: PoolType, resourceTypeId: Int!, poolName: String!, poolValues: [Map], allocationScript: String!): ResourcePool!
+    DeleteResourcePool(resourcePoolId: Int!): String!
 }

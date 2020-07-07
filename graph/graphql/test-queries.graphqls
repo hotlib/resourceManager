@@ -37,3 +37,21 @@ mutation createNewResourceType {
     Name
   }
 }
+
+query queryResourcePools {
+  QueryResourcePools(){
+    ID
+    Name
+  }
+}
+
+mutation deleteResourcePool {
+  DeleteResourcePool(resourcePoolId: 137438953473)
+}
+
+query queryResourceTypes {
+  QueryResourceTypes(){
+    ID
+    Name
+  }
+}
