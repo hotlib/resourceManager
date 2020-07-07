@@ -79,4 +79,8 @@ type Mutation {
     CreateResourceType(resourceName: String!, resourceProperties: Map!): ResourceType!
     CreatePool(poolType: PoolType, resourceTypeId: Int!, poolName: String!, poolValues: [Map], allocationScript: String!): ResourcePool!
     DeleteResourcePool(resourcePoolId: Int!): String!
+    DeleteResourceType(resourceTypeId: Int!): String!
+    UpdateResourceTypeName(resourceTypeId: Int!, resourceName: String!): ResourceType!
+    AddResourceTypeProperty(resourceTypeId: Int!, resourceProperties: Map!): ResourceType!
+    RemoveResourceTypeProperty(resourceTypeId: Int!, PropertyTypeId: Int!): ResourceType!
 }

@@ -5,9 +5,9 @@ package resolver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/marosmars/resourceManager/ent"
 	"github.com/marosmars/resourceManager/ent/resourcepool"
@@ -39,21 +39,9 @@ func (r *mutationResolver) FreeResource(ctx context.Context, input map[string]in
 
 func (r *mutationResolver) CreateResourceType(ctx context.Context, resourceName string, resourceProperties map[string]interface{}) (*ent.ResourceType, error) {
 	var client = r.ClientFrom(ctx)
-	var resourceTypeName = fmt.Sprintf("%v", resourceProperties["type"])
-	prop := client.PropertyType.Create().
-		SetName(resourceName). //TODO property and resource name the same?
-		SetType(resourceTypeName).
-		SetMandatory(true)
-
-	//TODO we support int, but we always get int64 instead of int
-	if reflect.TypeOf(resourceProperties["init"]).String() == "int64" {
-		resourceProperties["init"] = int(resourceProperties["init"].(int64))
-	}
-
-	in := []reflect.Value{reflect.ValueOf(resourceProperties["init"])}
-	reflect.ValueOf(prop).MethodByName("Set" + strings.Title(resourceTypeName) + "Val").Call(in)
-
-	var propType, _ = prop.Save(ctx)
+	//TODO property and resource name the same?
+	//TODO check error
+	var propType, _ = p.CreatePropertyType(ctx, client, resourceName, resourceProperties["type"], resourceProperties["init"])
 
 	resType, _ := client.ResourceType.Create().
 		SetName(resourceName).
@@ -102,8 +90,77 @@ func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepoo
 
 func (r *mutationResolver) DeleteResourcePool(ctx context.Context, resourcePoolID int) (string, error) {
 	client := r.ClientFrom(ctx)
-	err := client.ResourcePool.DeleteOneID(resourcePoolID).Exec(ctx)
-	return "ok", err
+	pool, err := p.ExistingPoolFromId(ctx, client, resourcePoolID)
+
+	if err != nil {
+		return "not ok", err
+	}
+
+	//TODO can you delete a pool which has allocated resources??
+	allocatedResources, err2 := pool.QueryResources()
+	if len(allocatedResources) > 0 || err2 != nil {
+		return "not ok", errors.New("resource pool has allocated resources, deallocate those first")
+	}
+
+	return "ok", client.ResourcePool.DeleteOneID(resourcePoolID).Exec(ctx)
+}
+
+func (r *mutationResolver) DeleteResourceType(ctx context.Context, resourceTypeID int) (string, error) {
+	client := r.ClientFrom(ctx)
+	resourceType, err := client.ResourceType.Get(ctx, resourceTypeID)
+
+	if err != nil {
+		return "not ok", err
+	}
+
+	pools, err2 := client.ResourceType.QueryPools(resourceType).All(ctx)
+
+	if err2 != nil {
+		return "not ok", err2
+	}
+
+	if len(pools) > 0 {
+		return "not ok", errors.New("resourceType has pools, can't delete (delete resource pools first)")
+	}
+
+	return "ok", client.ResourcePool.DeleteOneID(resourceTypeID).Exec(ctx)
+}
+
+func (r *mutationResolver) UpdateResourceTypeName(ctx context.Context, resourceTypeID int, resourceName string) (*ent.ResourceType, error) {
+	var client = r.ClientFrom(ctx)
+	return client.ResourceType.UpdateOneID(resourceTypeID).SetName(resourceName).Save(ctx)
+}
+
+func (r *mutationResolver) AddResourceTypeProperty(ctx context.Context, resourceTypeID int, resourceProperties map[string]interface{}) (*ent.ResourceType, error) {
+	var client = r.ClientFrom(ctx)
+
+	exist, resourceType := p.CheckIfPoolsExist(ctx, client, resourceTypeID)
+
+	if exist {
+		//TODO add annoying GO error handling
+		return nil, nil
+	}
+
+	propertyType, err := p.CreatePropertyType(ctx, client, resourceType.Name, resourceProperties["type"], resourceProperties["init"])
+
+	if err != nil {
+		//TODO add annoying GO error handling
+		return nil, err
+	}
+
+	return client.ResourceType.UpdateOneID(resourceTypeID).AddPropertyTypeIDs(propertyType.ID).Save(ctx)
+}
+
+func (r *mutationResolver) RemoveResourceTypeProperty(ctx context.Context, resourceTypeID int, propertyTypeID int) (*ent.ResourceType, error) {
+	var client = r.ClientFrom(ctx)
+	exist, _ := p.CheckIfPoolsExist(ctx, client, resourceTypeID)
+
+	if exist {
+		//TODO add annoying GO error handling
+		return nil, nil
+	}
+
+	return client.ResourceType.UpdateOneID(resourceTypeID).RemovePropertyTypeIDs(propertyTypeID).Save(ctx)
 }
 
 func (r *queryResolver) QueryResource(ctx context.Context, input map[string]interface{}, poolName string) (*ent.Resource, error) {

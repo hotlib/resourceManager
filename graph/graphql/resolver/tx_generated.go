@@ -104,3 +104,56 @@ func (tr txResolver) DeleteResourcePool(ctx context.Context, resourcePoolID int)
 	}
 	return result, nil
 }
+
+func (tr txResolver) DeleteResourceType(ctx context.Context, resourceTypeID int) (string, error) {
+	var result, zero string
+	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
+		result, err = mr.DeleteResourceType(ctx, resourceTypeID)
+		return
+	}); err != nil {
+		return zero, err
+	}
+	return result, nil
+}
+
+func (tr txResolver) UpdateResourceTypeName(ctx context.Context, resourceTypeID int, resourceName string) (*ent.ResourceType, error) {
+	var result, zero *ent.ResourceType
+	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
+		result, err = mr.UpdateResourceTypeName(ctx, resourceTypeID, resourceName)
+		return
+	}); err != nil {
+		return zero, err
+	}
+	if result != nil {
+		result = result.Unwrap()
+	}
+	return result, nil
+}
+
+func (tr txResolver) AddResourceTypeProperty(ctx context.Context, resourceTypeID int, resourceProperties map[string]interface{}) (*ent.ResourceType, error) {
+	var result, zero *ent.ResourceType
+	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
+		result, err = mr.AddResourceTypeProperty(ctx, resourceTypeID, resourceProperties)
+		return
+	}); err != nil {
+		return zero, err
+	}
+	if result != nil {
+		result = result.Unwrap()
+	}
+	return result, nil
+}
+
+func (tr txResolver) RemoveResourceTypeProperty(ctx context.Context, resourceTypeID int, propertyTypeID int) (*ent.ResourceType, error) {
+	var result, zero *ent.ResourceType
+	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
+		result, err = mr.RemoveResourceTypeProperty(ctx, resourceTypeID, propertyTypeID)
+		return
+	}); err != nil {
+		return zero, err
+	}
+	if result != nil {
+		result = result.Unwrap()
+	}
+	return result, nil
+}

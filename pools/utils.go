@@ -2,9 +2,12 @@ package pools
 
 import (
     "context"
+    "fmt"
     "github.com/marosmars/resourceManager/authz"
     "github.com/marosmars/resourceManager/authz/models"
     "log"
+    "reflect"
+    "strings"
 
     "github.com/marosmars/resourceManager/ent"
     "github.com/pkg/errors"
@@ -60,4 +63,50 @@ func OpenTestDb(ctx context.Context) *ent.Client {
     }
 
     return client
+}
+
+func CreatePropertyType(
+    ctx context.Context,
+    client *ent.Client,
+    name string,
+    typeName interface{},
+    initValue interface{}) (*ent.PropertyType, error) {
+
+    resourceTypeName := fmt.Sprintf("%v", typeName)
+
+    prop := client.PropertyType.Create().
+        SetName(name).
+        SetType(resourceTypeName).
+        SetMandatory(true)
+
+    //TODO we support int, but we always get int64 instead of int
+    if reflect.TypeOf(initValue).String() == "int64" {
+        initValue = int(initValue.(int64))
+    }
+
+    in := []reflect.Value{reflect.ValueOf(initValue)}
+    reflect.ValueOf(prop).MethodByName("Set" + strings.Title(resourceTypeName) + "Val").Call(in)
+
+   return prop.Save(ctx)
+}
+
+func CheckIfPoolsExist(
+    ctx context.Context,
+    client *ent.Client,
+    resourceTypeID int) (bool, *ent.ResourceType) {
+    resourceType, err := client.ResourceType.Get(ctx, resourceTypeID)
+    if err != nil {
+        //TODO add annoying GO error handling
+        return true, resourceType //fix we don't know
+    }
+
+    //there can't be any existing pools
+    count, err2 := resourceType.QueryPools().Count(ctx)
+
+    if err2 != nil || count > 0 {
+        //TODO add annoying GO error handling
+        return true, resourceType //fix we don't know
+    }
+
+    return false, resourceType
 }
