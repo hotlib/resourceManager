@@ -65,18 +65,42 @@ func OpenTestDb(ctx context.Context) *ent.Client {
     return client
 }
 
-func CreatePropertyType(
+func HasPropertyTypeExistingProperties(
+	ctx context.Context,
+	client *ent.Client,
+	propertyTypeID int) bool {
+
+    propertyType, err := client.PropertyType.Get(ctx, propertyTypeID)
+
+    if err != nil {
+        //TODO error handling
+    	return true //not sure
+    }
+    exists, err2 := client.PropertyType.QueryProperties(propertyType).Exist(ctx)
+
+    if err2 != nil {
+        //TODO error handling
+        return true //not sure
+    }
+    //TODO also check resource type association??
+
+	return exists
+}
+
+//TODO refactor
+func UpdatePropertyType(
     ctx context.Context,
     client *ent.Client,
+    propertyTypeID int,
     name string,
     typeName interface{},
-    initValue interface{}) (*ent.PropertyType, error) {
+    initValue interface{}) error {
 
-    resourceTypeName := fmt.Sprintf("%v", typeName)
+    propertyTypeName := fmt.Sprintf("%v", typeName)
 
-    prop := client.PropertyType.Create().
+    prop := client.PropertyType.UpdateOneID(propertyTypeID).
         SetName(name).
-        SetType(resourceTypeName).
+        SetType(propertyTypeName).
         SetMandatory(true)
 
     //TODO we support int, but we always get int64 instead of int
@@ -85,7 +109,32 @@ func CreatePropertyType(
     }
 
     in := []reflect.Value{reflect.ValueOf(initValue)}
-    reflect.ValueOf(prop).MethodByName("Set" + strings.Title(resourceTypeName) + "Val").Call(in)
+    reflect.ValueOf(prop).MethodByName("Set" + strings.Title(propertyTypeName) + "Val").Call(in)
+
+    return prop.Exec(ctx)
+}
+
+func CreatePropertyType(
+	ctx context.Context,
+	client *ent.Client,
+    name string,
+    typeName interface{},
+    initValue interface{}) (*ent.PropertyType, error) {
+
+    propertyTypeName := fmt.Sprintf("%v", typeName)
+
+    prop := client.PropertyType.Create().
+        SetName(name).
+        SetType(propertyTypeName).
+        SetMandatory(true)
+
+    //TODO we support int, but we always get int64 instead of int
+    if reflect.TypeOf(initValue).String() == "int64" {
+        initValue = int(initValue.(int64))
+    }
+
+    in := []reflect.Value{reflect.ValueOf(initValue)}
+    reflect.ValueOf(prop).MethodByName("Set" + strings.Title(propertyTypeName) + "Val").Call(in)
 
    return prop.Save(ctx)
 }

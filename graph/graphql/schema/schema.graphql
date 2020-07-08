@@ -74,13 +74,24 @@ type Query {
 }
 
 type Mutation {
+    # managing resources via pools
     ClaimResource(poolName: String!): Resource!
     FreeResource(input: Map!, poolName: String!): String!
-    CreateResourceType(resourceName: String!, resourceProperties: Map!): ResourceType!
+
+    # create/delete resource pool
     CreatePool(poolType: PoolType, resourceTypeId: Int!, poolName: String!, poolValues: [Map], allocationScript: String!): ResourcePool!
     DeleteResourcePool(resourcePoolId: Int!): String!
+
+    # create/update/delete resource type
+    CreateResourceType(resourceName: String!, resourceProperties: Map!): ResourceType!
     DeleteResourceType(resourceTypeId: Int!): String!
     UpdateResourceTypeName(resourceTypeId: Int!, resourceName: String!): ResourceType!
-    AddResourceTypeProperty(resourceTypeId: Int!, resourceProperties: Map!): ResourceType!
-    RemoveResourceTypeProperty(resourceTypeId: Int!, PropertyTypeId: Int!): ResourceType!
+    AddResourceTypeProperty(resourceTypeId: Int!, resourceProperties: Map!): ResourceType! # new property type added
+    AddExistingPropertyToResourceType(resourceTypeId: Int!, PropertyTypeId: Int!): Int! # existing property type added
+    RemoveResourceTypeProperty(resourceTypeId: Int!, PropertyTypeId: Int!): ResourceType! # remove property type
+
+    # property type create/update/delete
+    CreatePropertyType(propertyName: String!, typeProperties: Map!): PropertyType!
+    UpdatePropertyType(propertyTypeId: Int!, propertyName: String!, typeProperties: Map!): Boolean!
+    DeletePropertyType(propertyTypeId: Int!): Boolean!
 }
