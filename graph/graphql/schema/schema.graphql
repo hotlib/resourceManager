@@ -73,24 +73,39 @@ type Query {
     QueryResourcePools: [ResourcePool]!
 }
 
+#TODO missing CRUD for pools <-> labels
+
 type Mutation {
     # managing resources via pools
     ClaimResource(poolName: String!): Resource!
     FreeResource(input: Map!, poolName: String!): String!
 
-    # create/delete resource pool
+    # create/update/delete resource pool
     CreatePool(poolType: PoolType, resourceTypeId: Int!, poolName: String!, poolValues: [Map], allocationScript: String!): ResourcePool!
     DeleteResourcePool(resourcePoolId: Int!): String!
 
+    ## poolValues: [Map] - only NEW pool values are allowed, leave it empty if no values need to be added to the pool
+    ##                     old values cannot be deleted (maybe they should be deletable?)
+    ## poolName: String! - new pool name (if not changed send the current name)
+    ## allocationScript: String! - new allocation script, if not changed send the current one
+    UpdateResourcePool(resourcePoolId: Int!, poolName: String!, poolValues: [Map], allocationScript: String!): Boolean!
+
     # create/update/delete resource type
+    ## resourceName: String! - name of the resource type AND property type (should they be different?)
+    ## resourceProperties: Map! - for key "init" the value is the initial value of the property type (like 7)
+    ##                            for key "type" the value is the name of the type like "int"
     CreateResourceType(resourceName: String!, resourceProperties: Map!): ResourceType!
     DeleteResourceType(resourceTypeId: Int!): String!
+    ## it only changes the name of the resource type
     UpdateResourceTypeName(resourceTypeId: Int!, resourceName: String!): ResourceType!
+    ## I don't know if AddResourceTypeProperty is a legitimate case that we should support
     AddResourceTypeProperty(resourceTypeId: Int!, resourceProperties: Map!): ResourceType! # new property type added
+    ## I don't know if AddExistingPropertyToResourceType is a legitimate case that we should support
     AddExistingPropertyToResourceType(resourceTypeId: Int!, PropertyTypeId: Int!): Int! # existing property type added
+    ## I don't know if RemoveResourceTypeProperty is a legitimate case that we should support
     RemoveResourceTypeProperty(resourceTypeId: Int!, PropertyTypeId: Int!): ResourceType! # remove property type
 
-    # property type create/update/delete
+    # property type create/update/delete (not sure if these 3 mutations are needed)
     CreatePropertyType(propertyName: String!, typeProperties: Map!): PropertyType!
     UpdatePropertyType(propertyTypeId: Int!, propertyName: String!, typeProperties: Map!): Boolean!
     DeletePropertyType(propertyTypeId: Int!): Boolean!

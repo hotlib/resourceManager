@@ -6,9 +6,6 @@ package resolver
 import (
 	"context"
 	"errors"
-	"fmt"
-	"reflect"
-
 	"github.com/marosmars/resourceManager/ent"
 	"github.com/marosmars/resourceManager/ent/resourcepool"
 	"github.com/marosmars/resourceManager/graph/graphql/generated"
@@ -42,21 +39,7 @@ func (r *mutationResolver) CreatePool(ctx context.Context, poolType *resourcepoo
 
 	resType, _ := client.ResourceType.Get(ctx, resourceTypeID)
 
-	//TODO we support int, but we always get int64 instead of int
-	for i, v := range poolValues {
-		for k, val := range v {
-			fmt.Printf("key[%s] value[%s]\n", k, v)
-			if reflect.TypeOf(val).String() == "int64" {
-				poolValues[i][k] = int(val.(int64))
-			}
-		}
-	}
-
-	var rawProps []p.RawResourceProps
-
-	for _, v := range poolValues {
-		rawProps = append(rawProps, v)
-	}
+	var rawProps = p.ToRawTypes(poolValues)
 
 	if resourcepool.PoolTypeSet == *poolType {
 		_, rp, err := p.NewSetPoolWithMeta(ctx, client, resType, rawProps, poolName)
@@ -82,13 +65,37 @@ func (r *mutationResolver) DeleteResourcePool(ctx context.Context, resourcePoolI
 		return "not ok", err
 	}
 
-	//TODO can you delete a pool which has allocated resources??
+	//TODO can you delete a pool which has allocated resources?? I assume not!
 	allocatedResources, err2 := pool.QueryResources()
 	if len(allocatedResources) > 0 || err2 != nil {
 		return "not ok", errors.New("resource pool has allocated resources, deallocate those first")
 	}
 
 	return "ok", client.ResourcePool.DeleteOneID(resourcePoolID).Exec(ctx)
+}
+
+func (r *mutationResolver) UpdateResourcePool(ctx context.Context, resourcePoolID int, poolName string, poolValues []map[string]interface{}, allocationScript string) (bool, error) {
+	client := r.ClientFrom(ctx)
+
+	resourcePool, err := client.ResourcePool.UpdateOneID(resourcePoolID).SetName(poolName).Save(ctx) //TODO also set allocationScript
+
+	if err != nil {
+		//TODO error handling
+		return false, err
+	}
+
+	resourceType, err2 := resourcePool.QueryResourceType().Only(ctx)
+
+	if err2 != nil {
+		//TODO error handling
+		return false, err2
+	}
+
+	var rawProps = p.ToRawTypes(poolValues)
+
+	err3 := p.PreCreateResources(ctx, client, rawProps, resourcePool, resourceType)
+
+	return err3 == nil, err3
 }
 
 func (r *mutationResolver) CreateResourceType(ctx context.Context, resourceName string, resourceProperties map[string]interface{}) (*ent.ResourceType, error) {
@@ -168,7 +175,7 @@ func (r *mutationResolver) RemoveResourceTypeProperty(ctx context.Context, resou
 	resourceType, err := client.ResourceType.UpdateOneID(resourceTypeID).RemovePropertyTypeIDs(propertyTypeID).Save(ctx)
 
 	if err == nil {
-		//TODO annoying erro handlign dome smth XXX
+		//TODO add annoying GO error handling
 		err2 := client.PropertyType.DeleteOneID(propertyTypeID).Exec(ctx)
 		return resourceType, err2
 	}

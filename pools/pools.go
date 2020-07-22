@@ -59,23 +59,10 @@ func newPoolInner(ctx context.Context,
 	}
 
 	// Pre-create all resources
-	for _, rawResourceProps := range propertyValues {
-		// Parse & create the props
-		var props ent.Properties
-		if props, err = parseProps(ctx, client, resourceType, rawResourceProps); err != nil {
-			return nil, errors.Wrapf(err, "Unable to create new pool \"%s\". Error parsing properties", poolName)
-		}
+	resourceErr := PreCreateResources(ctx, client, propertyValues, pool, resourceType)
 
-		// Create pre-allocated resource
-		_, err = client.Resource.Create().
-			SetPool(pool).
-			SetClaimed(false).
-			AddProperties(props...).
-			Save(ctx)
-
-		if err != nil {
-			return nil, errors.Wrapf(err, "Unable to create new pool \"%s\". Error creating resource", poolName)
-		}
+	if resourceErr != nil {
+		return nil, resourceErr
 	}
 
 	return pool, nil
@@ -129,7 +116,7 @@ func existingPool(
 	}
 }
 
-func parseProps(
+func ParseProps(
 	ctx context.Context,
 	tx *ent.Client,
 	resourceType *ent.ResourceType,

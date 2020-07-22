@@ -91,6 +91,17 @@ func (tr txResolver) DeleteResourcePool(ctx context.Context, resourcePoolID int)
 	return result, nil
 }
 
+func (tr txResolver) UpdateResourcePool(ctx context.Context, resourcePoolID int, poolName string, poolValues []map[string]interface{}, allocationScript string) (bool, error) {
+	var result, zero bool
+	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {
+		result, err = mr.UpdateResourcePool(ctx, resourcePoolID, poolName, poolValues, allocationScript)
+		return
+	}); err != nil {
+		return zero, err
+	}
+	return result, nil
+}
+
 func (tr txResolver) CreateResourceType(ctx context.Context, resourceName string, resourceProperties map[string]interface{}) (*ent.ResourceType, error) {
 	var result, zero *ent.ResourceType
 	if err := tr.WithTransaction(ctx, func(ctx context.Context, mr generated.MutationResolver) (err error) {

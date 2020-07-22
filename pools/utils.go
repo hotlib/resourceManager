@@ -87,7 +87,15 @@ func HasPropertyTypeExistingProperties(
 	return exists
 }
 
-//TODO refactor
+func ProcessInitValue(initValue interface{} ) []reflect.Value {
+    //TODO we support int, but we always get int64 instead of int
+    if reflect.TypeOf(initValue).String() == "int64" {
+        initValue = int(initValue.(int64))
+    }
+
+    return []reflect.Value{reflect.ValueOf(initValue)}
+}
+
 func UpdatePropertyType(
     ctx context.Context,
     client *ent.Client,
@@ -103,15 +111,12 @@ func UpdatePropertyType(
         SetType(propertyTypeName).
         SetMandatory(true)
 
-    //TODO we support int, but we always get int64 instead of int
-    if reflect.TypeOf(initValue).String() == "int64" {
-        initValue = int(initValue.(int64))
-    }
-
-    in := []reflect.Value{reflect.ValueOf(initValue)}
+    in := ProcessInitValue(initValue)
+    //we set the property type value (we don't know what we get from the user)
     reflect.ValueOf(prop).MethodByName("Set" + strings.Title(propertyTypeName) + "Val").Call(in)
 
-    return prop.Exec(ctx)
+    _, err := prop.Save(ctx)
+    return err
 }
 
 func CreatePropertyType(
@@ -128,15 +133,61 @@ func CreatePropertyType(
         SetType(propertyTypeName).
         SetMandatory(true)
 
-    //TODO we support int, but we always get int64 instead of int
-    if reflect.TypeOf(initValue).String() == "int64" {
-        initValue = int(initValue.(int64))
-    }
-
-    in := []reflect.Value{reflect.ValueOf(initValue)}
+    in := ProcessInitValue(initValue)
+    //we set the property type value (we don't know what we get from the user)
     reflect.ValueOf(prop).MethodByName("Set" + strings.Title(propertyTypeName) + "Val").Call(in)
 
    return prop.Save(ctx)
+}
+
+func ToRawTypes(poolValues []map[string]interface{}) []RawResourceProps {
+    //TODO we support int, but we always get int64 instead of int
+    for i, v := range poolValues {
+        for k, val := range v {
+            fmt.Printf("key[%s] value[%s]\n", k, v)
+            if reflect.TypeOf(val).String() == "int64" {
+                poolValues[i][k] = int(val.(int64))
+            }
+        }
+    }
+
+    var rawProps []RawResourceProps
+
+    for _, v := range poolValues {
+        rawProps = append(rawProps, v)
+    }
+
+    return rawProps
+}
+
+func PreCreateResources(ctx context.Context,
+    client *ent.Client,
+    propertyValues []RawResourceProps,
+    pool * ent.ResourcePool,
+    resourceType * ent.ResourceType) error {
+    for _, rawResourceProps := range propertyValues {
+        // Parse & create the props
+        var err error = nil
+        var props ent.Properties
+        if props, err = ParseProps(ctx, client, resourceType, rawResourceProps); err != nil {
+            //TODO logging
+            return errors.Wrapf(err, "Unable to create new pool \"%s\". Error parsing properties", pool.Name)
+        }
+
+        // Create pre-allocated resource
+        _, err = client.Resource.Create().
+            SetPool(pool).
+            SetClaimed(false).
+            AddProperties(props...).
+            Save(ctx)
+
+        if err != nil {
+            //TODO logging
+            return errors.Wrapf(err, "Unable to create new pool \"%s\". Error creating resource", pool.Name)
+        }
+    }
+
+    return nil
 }
 
 func CheckIfPoolsExist(
